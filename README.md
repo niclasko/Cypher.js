@@ -1,15 +1,17 @@
 # Cypher.js
 Cypher graph database query engine and graph database for Javascript
 
-Client-side (web browser)
+## Usage
+
+**Client-side (web browser)**
 
 1. Include
 	
-	<script type="text/javascript" src="Cypher.min.js"></script>
+	```<script type="text/javascript" src="Cypher.min.js"></script>```
 
 2. Use
 	
-	var options = {
+	```var options = {
 
 		// Default will run as Web Worker, i.e. runInWebWorker = true if not specified
 		// Set runAsWebWorker to false to run in same thread as main page javascript
@@ -37,11 +39,11 @@ Client-side (web browser)
 		function(errorText) {
 			console.log(errorText);
 		}
-	);
+	);```
 
-Node.js
+**Node.js**
 
-// Dependency to https package
+```// Dependency to https package
 var https = require("https");
 
 var Cypher = require("Cypher.js").Cypher;
@@ -66,4 +68,4 @@ cypher.execute(
 	function(error) {
 		console.log(error);
 	}
-);
+);```
