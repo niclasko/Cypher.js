@@ -3,6 +3,8 @@ Cypher graph database query engine and graph database for Javascript
 
 Demo: <a href="https://niclasko.github.io/CypherJS/?merge%20(who:Who{name:%22Everyone%22})-[r1:LOVES]-%3E(what:What{name:%22The%20Cypher%20query%20language%22})-[r2:BECAUSE]-%3E(why:Why{name:%22It%20is%20great!%22})%20return%20who,%20what,%20why,%20r1,%20r2" target="_blank">https://niclasko.github.io/CypherJS/?merge%20(who:Who{name:%22Everyone%22})-[r1:LOVES]-%3E(what:What{name:%22The%20Cypher%20query%20language%22})-[r2:BECAUSE]-%3E(why:Why{name:%22It%20is%20great!%22})%20return%20who,%20what,%20why,%20r1,%20r2</a>
 
+Note: Does not work in Internet Explorer
+
 ## Usage
 
 **Client-side (web browser)**
