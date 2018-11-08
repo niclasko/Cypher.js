@@ -48,7 +48,7 @@ Demo: <a href="http://niclasko.github.io/CypherJS" target="_blank">http://niclas
 ```// Dependency to https package
 var https = require("https");
 
-var Cypher = require("Cypher.js").Cypher;
+var Cypher = require("Cypher.min.js").Cypher;
 
 var options = {
 
