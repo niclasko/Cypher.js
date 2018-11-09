@@ -22,7 +22,7 @@ Note: Does not work in Internet Explorer
 	var options = {
 
 		// Default will run as Web Worker, i.e. runInWebWorker = true if not specified
-		// Set runAsWebWorker to false to run in same thread as main page javascript
+		// Set runInWebWorker to false to run in same thread as main page javascript
 		runInWebWorker: true,
 
 		// Proxy for xmlhttprequest to avoid CORS. This is optional. If not provided
@@ -59,9 +59,9 @@ var Cypher = require("Cypher.min.js").Cypher;
 
 var options = {
 
-	// In Node.js the runAsWebWorker option must be set to false
+	// In Node.js the runInWebWorker option must be set to false
 	// Web Workers are not supported in Node.js
-	runAsWebWorker: false,
+	runInWebWorker: false,
 
 	// In Node.js a proxy is not needed
 	dataDownloadProxy: null
