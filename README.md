@@ -18,7 +18,8 @@ Note: Does not work in Internet Explorer
 
 2. Use
 	
-	```var options = {
+	```
+	var options = {
 
 		// Default will run as Web Worker, i.e. runInWebWorker = true if not specified
 		// Set runAsWebWorker to false to run in same thread as main page javascript
@@ -46,7 +47,8 @@ Note: Does not work in Internet Explorer
 		function(errorText) {
 			console.log(errorText);
 		}
-	);```
+	);
+	```
 
 **Node.js**
 
