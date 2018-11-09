@@ -52,7 +52,8 @@ Note: Does not work in Internet Explorer
 
 **Node.js**
 
-```// Dependency to https package
+```
+// Dependency to https package
 var https = require("https");
 
 var Cypher = require("Cypher.min.js").Cypher;
@@ -77,4 +78,5 @@ cypher.execute(
 	function(error) {
 		console.log(error);
 	}
-);```
+);
+```
