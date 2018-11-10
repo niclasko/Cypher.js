@@ -7,6 +7,7 @@ Demos
 1. Just for fun: https://bit.ly/2Dbylrh
 2. Game of Thrones: https://bit.ly/2QoBSG9
 3. Time series analysis: https://bit.ly/2SX7K6v
+4. Generate random strings: https://bit.ly/2FoJcAW
 
 Note: Does not work in Internet Explorer
 
