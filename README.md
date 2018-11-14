@@ -8,6 +8,7 @@ Demos
 2. Game of Thrones: https://bit.ly/2QoBSG9
 3. Time series analysis: https://bit.ly/2SX7K6v
 4. Generate random strings: https://bit.ly/2FoJcAW
+5. Bill of material explosion: https://bit.ly/2DoKJE6
 
 Note: Does not work in Internet Explorer
 
