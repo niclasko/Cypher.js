@@ -6,7 +6,7 @@ For inquiries, reach out to Cypher.js author Niclas Kjäll-Ohlsson (niclas@fuseb
 Demos
 1. Just for fun: https://bit.ly/2Dbylrh
 2. Game of Thrones: https://bit.ly/2QoBSG9
-3. Time series analysis: https://bit.ly/2SX7K6v
+3. Time series analysis: https://bit.ly/2zSQkzt
 4. Generate random strings: https://bit.ly/2FoJcAW
 5. Bill of material explosion: https://bit.ly/2DoKJE6
 
