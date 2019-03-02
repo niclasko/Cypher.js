@@ -10,8 +10,6 @@ Demos
 4. Generate random strings: https://bit.ly/2FoJcAW
 5. Bill of material explosion: https://bit.ly/2DoKJE6
 
-Note: Does not work in Internet Explorer
-
 ## Usage
 
 **Client-side (web browser)**
