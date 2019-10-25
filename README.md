@@ -1,5 +1,5 @@
 # Cypher.js
-Cypher.js is a graph database query engine & graph database implemented from scratch in Javascript with zero dependencies. It implements the Cypher graph db query language.
+Cypher.js is a graph database implemented from scratch in Javascript with zero dependencies. It implements the Cypher graph db query language.
 
 For inquiries, reach out to Cypher.js author Niclas Kjäll-Ohlsson (niclas@fusebase.io).
 
