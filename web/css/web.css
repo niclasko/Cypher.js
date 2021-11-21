@@ -1,0 +1,84 @@
+body {
+	font-size: small;
+	font-family: Arial;
+}
+
+textarea {
+	resize: none;
+	font-size: small;
+	font-family: Courier;
+	margin-bottom: 10px;
+}
+
+div.output {
+	border-style: solid;
+	border-width: 1px;
+	border-color: lightGray;
+	margin-bottom: 10px;
+}
+
+div.results {
+	border-style: solid;
+	border-width: 1px;
+	border-color: lightGray;
+	max-height: 300px;
+	overflow: auto;
+	width: 100%;
+}
+
+a:link.selected {
+	background-color: lightGray;
+}
+
+table.results {
+	font-size: x-small;
+	font-family: Arial;
+	width: 100%;
+}
+
+table.results td,
+table.results th {
+	text-align: left;
+	vertical-align: top;
+}
+
+table.object {
+	font-size: x-small;
+	font-family: Arial;
+	background: #f2f2f2;
+	border-radius: 3px;
+}
+
+table.object th,
+table.object th {
+	text-align: left;
+}
+
+div.query {
+	font-size: x-small;
+	font-family: Courier;
+}
+
+a.query {
+	font-size: x-small;
+	font-family: Courier;
+}
+
+a:link {
+	color: gray;
+}
+
+/* visited link */
+a:visited {
+	color: gray;
+}
+
+/* mouse over link */
+a:hover {
+	color: gray;
+}
+
+/* selected link */
+a:active {
+	color: gray;
+}

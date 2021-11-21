@@ -1,0 +1,31 @@
+.nodes circle {
+	stroke: #999;
+	stroke-width: 1px;
+}
+
+.links line {
+	stroke: #999;
+	stroke-opacity: 0.6;
+	stroke-width: 1.7px;
+}
+
+.arrowhead {
+	fill: #999;
+}
+
+.nodetext {
+	text-shadow:1px 1px 5px gray, 1px 1px 5px gray;
+	text-align:center;
+}
+
+.legend:hover {
+	font-weight: bold;
+}
+
+.legend {
+	cursor: default;
+}
+
+.textHover {
+	font-weight: bold;
+}
