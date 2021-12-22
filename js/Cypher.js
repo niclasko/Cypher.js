@@ -1,6 +1,6 @@
 /*
 * Cypher.js graph query engine for Javascript
-* Copyright (c) 2021 "Niclas Kjäll-Ohlsson"
+* Copyright (c) 2021 "Niclas Kjall-Ohlsson"
 * 
 * This file is part of Cypher.js.
 * 
@@ -191,12 +191,32 @@ function CypherJS() {
 			var addLabelNodeIdLookup = function(_label, nodeId) {
 				var label = recode(_label);
 				initializeLabelNodeIdLookup(label);
-				labelNodeIdLookup[label].push(nodeId);
+				var equalsNodeIdCheck = function(el) {
+					return el == nodeId;
+				};
+				if(nodeId != undefined && !labelNodeIdLookup[label].find(equalsNodeIdCheck)) {
+					labelNodeIdLookup[label].push(nodeId);
+				}
+			};
+			this._addLabelNodeIdLookup = function(_label, nodeId) {
+				addLabelNodeIdLookup(_label, nodeId);
 			};
 			var addTypeRelationshipIdLookup = function(_type, relationshipId) {
+				if(relationshipId == undefined) {
+					return;
+				}
 				var type = recode(_type);
 				initializeTypeRelationshipIdLookup(type);
-				typeRelationshipIdLookup[type].push(relationshipId);
+				var equalsRelationshipIdCheck = function(el) {
+					return el == relationshipId;
+				};
+				if(!typeRelationshipIdLookup[type].find(equalsRelationshipIdCheck)) {
+					typeRelationshipIdLookup[type].push(relationshipId);
+					relationships[relationshipId].setStoredType(_type);
+				}
+			};
+			this._addTypeRelationshipIdLookup = function(_type, relationshipId) {
+				addTypeRelationshipIdLookup(_type, relationshipId);
 			};
 			var getFreeNodeId = function() {
 				while(nodes[NODE_ID_FACTORY]) {
@@ -239,16 +259,17 @@ function CypherJS() {
 				return RELATIONSHIP_ID_FACTORY;
 			};
 			var addRelationship = function(relationship, givenId) {
+				var relationshipId = null;
 				if(!givenId) {
-					relationship.setId(getFreeRelationshipId());
-					relationships[relationship.id()] = relationship;
+					relationshipId = getFreeRelationshipId();
 				} else if(givenId) {
 					if(nodes[givenId]) {
 						throw "Relationship with ID " + givenId + " already exists in the database.";
 					}
-					relationship.setId(givenId);
-					relationship[givenId] = relationship;
+					relationshipId = givenId;
 				}
+				relationship.setId(relationshipId);
+				relationships[relationshipId] = relationship;
 				
 				addLookupRelationship(
 					relationship.getFromNode().id(),
@@ -714,7 +735,7 @@ function CypherJS() {
 					!node.outgoingRelationship().hasVariablePathLength()) {
 					toNode = node.outgoingRelationship().getNextObject().getReferredNode().getData();
 				}
-
+				
 				node.outgoingRelationship().bindProperties();
 
 				return relationshipMatch(
@@ -953,8 +974,9 @@ function CypherJS() {
 					this.bindProperty(key);
 				}
 			};
-			this.setLabel = function(labelName) {
+			this.setLabel = function(labelName, nodeId) {
 				labels[labelName] = true;
+				db._addLabelNodeIdLookup(labelName, nodeId);
 			};
 			this.hasLabel = function(labelName) {
 				return labels[labelName];
@@ -1219,8 +1241,12 @@ function CypherJS() {
 			this.id = function() {
 				return id;
 			};
-			this.setType = function(_type) {
+			this.setStoredType = function(_type) {
 				relationshipType = _type;
+			};
+			this.setType = function(_type, relationshipId) {
+				relationshipType = _type;
+				//db._addTypeRelationshipIdLookup(relationshipType, relationshipId);
 			};
 			this.getType = function() {
 				return relationshipType;
@@ -1246,6 +1272,9 @@ function CypherJS() {
 				return properties[key];
 			};
 			this.getProperties = function() {
+				return properties;
+			};
+			this.getRelationshipProperties = function() {
 				return properties;
 			};
 			this.setFromNode = function(node) {
@@ -1395,8 +1424,8 @@ function CypherJS() {
 					toNode: (toNode ? toNode.get() : null),
 					direction: this.direction(),
 					getProperty: function() { return properties[key]; },
-					getProperties: function() { return this.properties; },
-					getKeys: function() { return this.properties.getKeys(); },
+					getProperties: function() { return properties; },
+					getKeys: function() { return properties.getKeys(); },
 					getType: function() { return relationshipType; }
 				});
 			};
@@ -1467,6 +1496,8 @@ function CypherJS() {
 					expandedPath.push(relationship.id());
 					pathList.push(path);
 					updateVisitedRelationships(path);
+				} else if(!hasVariablePathLength) {
+					this.setMatchedRelationship(relationship);
 				}
 			};
 			this.getMatchedRelationship = function() {
@@ -2572,11 +2603,69 @@ function CypherJS() {
 					} else {
 						throw "Cannot assign to object of type \"" + o.constructor.name + "\".";
 					}
-					assignee.setProperty(
-						propertyKey,
-						expression
+					try {
+						assignee.setProperty(
+							propertyKey,
+							expression
+						);
+						assignee.bindProperty(propertyKey);
+					} catch(e) {
+						;
+					}
+				}
+			};
+			function LabelSetterEntry(_variable, _labelExpression) {
+				var variable = _variable;
+				var labelExpression = _labelExpression;
+				
+				this.set = function() {
+					var o = variable.getObject();
+					var assignee;
+
+					if(o.constructor == Unwind) {
+						o = o.value();		
+					}
+
+					if(o.constructor == NodeReference) {
+						assignee = o.getObject();
+					} else if(o.constructor == Node) {
+						assignee = o.getData();
+					} else {
+						throw "Cannot assign to object of type \"" + o.constructor.name + "\".";
+					}
+					assignee.setLabel(
+						labelExpression.value(),
+						assignee.getId()
 					);
-					assignee.bindProperty(propertyKey);
+				}
+			};
+			function TypeSetterEntry(_variable, _typeExpression) {
+				var variable = _variable;
+				var typeExpression = _typeExpression;
+				
+				this.set = function() {
+					var o = variable.getObject();
+					var assignee;
+
+					if(o.constructor == Unwind) {
+						o = o.value();		
+					}
+
+					if(o.constructor == RelationshipReference) {
+						assignee = o.getObject();
+					} else if(o.constructor == Relationship) {
+						assignee = o.getData();
+					} else {
+						throw "Cannot assign to object of type \"" + o.constructor.name + "\".";
+					}
+					try {
+						assignee.setType(
+							typeExpression.value(),
+							assignee.id()
+						);
+					} catch(e) {
+						;
+					}
 				}
 			};
 
@@ -2586,6 +2675,22 @@ function CypherJS() {
 				}
 				setters.push(
 					new SetterEntry(variable, propertyKey, expression)
+				);
+			};
+			this.addLabelSetter = function(variable, labelExpression) {
+				if(!setters) {
+					setters = [];
+				}
+				setters.push(
+					new LabelSetterEntry(variable, labelExpression)
+				);
+			};
+			this.addTypeSetter = function(variable, typeExpression) {
+				if(!setters) {
+					setters = [];
+				}
+				setters.push(
+					new TypeSetterEntry(variable, typeExpression)
 				);
 			};
 			this.setPreviousOperation = function(_previousOperation) {
@@ -3328,7 +3433,7 @@ function CypherJS() {
 					if(!collectionToUnwind) {
 						return;
 					}
-					if(!collectionToUnwind.length) {
+					if(!Array.isArray(collectionToUnwind)) {
 						throw "Unwind expects list expression.";
 					}
 					for(index=0; index<collectionToUnwind.length; index++) {
@@ -3911,7 +4016,7 @@ function CypherJS() {
 			_Function.f.head = new _Function("head", 1, 1, function() { return (this.p[0].value().shift ? this.p[0].value().shift() : null); });
 			_Function.f.last = new _Function("last", 1, 1, function() { return (this.p[0].value().length>0 ? this.p[0].value()[this.p[0].value().length-1] : null); });
 			_Function.f.size = new _Function("size", 1, 1, function() { return this.p[0].value().length; });
-			
+
 			_Function.f.object_lookup = new _Function("object_lookup", 2, 2, function() {
 				if(this.p[0].value().getProperty) {
 					return this.p[0].value().getProperty(this.p[1].value());
@@ -4874,19 +4979,25 @@ function CypherJS() {
 								variable, propertyKey, expression
 							);
 						} else {
-							// Setting label to variable if node
-							parseLabel();
-							if(variable.getObject().constructor != Node) {
-								throw "Can't assign a label to a \"" + variable.getObject().getType() + "\".";
+							var variableType = variable.getObject().constructor;
+							if(variableType != Node && variableType != Relationship) {
+								throw "Can't assign a label/type to a \"" + variable.getObject().getType() + "\".";
 							}
-							/*engine.context().setterOperation(
-								function() {
-									variable.setProperty(
-										propertyKey,
-										parser.getExpression()
+							if(colon()) {
+								if(!parseExpression()) {
+									throw "Expected expression.";
+								}
+								var expression = parser.getExpression();
+								if(variableType == Node) {
+									engine.operationContext().addLabelSetter(
+										variable, expression
+									);
+								} else if(variableType == Relationship) {
+									engine.operationContext().addTypeSetter(
+										variable, expression
 									);
 								}
-							);*/
+							}
 						}
 					} while(comma());
 				}

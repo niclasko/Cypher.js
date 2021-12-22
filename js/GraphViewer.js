@@ -240,10 +240,11 @@ GraphViewer.prototype.draw = function() {
 	}
 
 	function fitText(linkLength, svgTextElement, text) {
-		svgTextElement.textContent = text;
-		var i = text.length-3;
+		var _text = text || "UNDEFINED";
+		svgTextElement.textContent = _text;
+		var i = _text.length-3;
 		while(svgTextElement.getComputedTextLength() > linkLength && i >= 0) {
-			svgTextElement.textContent = text.substring(0,i--) + "...";
+			svgTextElement.textContent = _text.substring(0,i--) + "...";
 		}
 	}
 
