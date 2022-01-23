@@ -2614,6 +2614,30 @@ function CypherJS() {
 					}
 				}
 			};
+			function MapSetterEntry(_variable, _mapExpression) {
+				var variable = _variable;
+				var mapExpression = _mapExpression;
+				
+				this.set = function() {
+					var o = variable.getObject();
+					var assignee;
+
+					if(o.constructor == Unwind) {
+						o = o.value();		
+					}
+
+					if(o.constructor == NodeReference || o.constructor == RelationshipReference) {
+						assignee = o.getObject();
+					} else if(o.constructor == Node || o.constructor == Relationship) {
+						assignee = o.getData();
+					} else {
+						throw "Cannot assign to object of type \"" + o.constructor.name + "\".";
+					}
+					assignee.setProperties(
+						mapExpression.value()
+					);
+				}
+			};
 			function LabelSetterEntry(_variable, _labelExpression) {
 				var variable = _variable;
 				var labelExpression = _labelExpression;
@@ -2683,6 +2707,14 @@ function CypherJS() {
 				}
 				setters.push(
 					new LabelSetterEntry(variable, labelExpression)
+				);
+			};
+			this.addMapSetter = function(variable, mapExpression) {
+				if(!setters) {
+					setters = [];
+				}
+				setters.push(
+					new MapSetterEntry(variable, mapExpression)
 				);
 			};
 			this.addTypeSetter = function(variable, typeExpression) {
@@ -3915,8 +3947,8 @@ function CypherJS() {
 			Operator.f.EQUALS = new Operator("=", 7, true, function() { return this.lhs.value()==this.rhs.value(); });
 			Operator.f.NOT_EQUALS = new Operator("<>", 7, true, function() { return this.lhs.value()!=this.rhs.value(); });
 			Operator.f.IN = new Operator("IN", 7, true, function() {
-				(!this.rhs.element().value().contains && (function() {throw "Not a list expression.";})());
-				return this.rhs.element().value().contains(this.lhs.value()); 
+				(this.rhs.value().constructor != Array && (function() {throw "Not a list expression.";})());
+				return this.rhs.value().indexOf(this.lhs.value()) > -1;
 			});
 			Operator.f.IS = new Operator("IS", 7, true, function() { return this.lhs.value()==this.rhs.value(); });
 			Operator.f.AND = new Operator("AND", 6, true, function() { return this.lhs.value()&&this.rhs.value(); });
@@ -4997,6 +5029,16 @@ function CypherJS() {
 										variable, expression
 									);
 								}
+							} else if(plus_equals()) {
+								if(!parseExpression()) {
+									throw "Expected expression.";
+								}
+								var expression = parser.getExpression();
+								if(variableType == Node || variableType == Relationship) {
+									engine.operationContext().addMapSetter(
+										variable, expression
+									);
+								}
 							}
 						}
 					} while(comma());
@@ -6056,6 +6098,9 @@ function CypherJS() {
 			};
 			var equals = function() {
 				return check('=');
+			};
+			var plus_equals = function() {
+				return check('+') && check('=');
 			};
 			var comma = function() {
 				return check(',');
