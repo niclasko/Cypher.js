@@ -3927,6 +3927,31 @@ function CypherJS() {
 			Operator.f.MULTIPLY = new Operator("*", 10, true, function() { return this.lhs.value()*this.rhs.value(); });
 			Operator.f.DIVIDE = new Operator("/", 10, true, function() { return this.lhs.value()/this.rhs.value(); });
 			Operator.f.MODULO = new Operator("%", 10, true, function() { return this.lhs.value()%this.rhs.value(); });
+			Operator.f.SET_UNION = new Operator("|", 10, true, function() {
+				try {
+					return Array.from(new Set(this.lhs.value().concat(this.rhs.value())));
+				} catch (error) {
+					console.log(error);
+					return null;	
+				}
+			});
+			Operator.f.SET_INTERSECT = new Operator("&", 10, true, function() {
+				try {
+					var A = new Set(this.lhs.value());
+					var B = new Set(this.rhs.value());
+					var intersect = new Set();
+					for (let e of B) {
+						console.log(e);
+						if(A.has(e)) {
+							intersect.add(e);
+						}
+					}
+					return Array.from(intersect);
+				} catch (error) {
+					console.log(error);
+					return null;	
+				}
+			});
 			Operator.f.PLUS = new Operator("+", 9, true, function() {
 				if(this.lhs.value().constructor == Array) {
 					return this.lhs.value().concat(this.rhs.value());
