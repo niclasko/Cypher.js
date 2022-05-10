@@ -3962,7 +3962,17 @@ function CypherJS() {
 				return this.lhs.value()+this.rhs.value();
 			});
 			Operator.f.MINUS = new Operator("-", 9, true, function() {
-				return this.lhs.value()-this.rhs.value();
+				var lhs = this.lhs.value(),
+					rhs = this.rhs.value();
+				if(lhs.constructor == Array && rhs.constructor == Array) {
+					var _difference = new Set(lhs);
+					var rhs_set = new Set(rhs);
+					for (let e of rhs_set) {
+						_difference.delete(e)
+					}
+					return Array.from(_difference);
+				}
+				return lhs-rhs;
 			});
 
 			Operator.f.GREATER_THAN = new Operator(">", 8, true, function() { return this.lhs.value()>this.rhs.value(); });
