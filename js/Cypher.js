@@ -4161,6 +4161,7 @@ function CypherJS() {
 				return this.p[0].value()+"";
 			});
 			_Function.f.todate = new _Function("todate", 1, 1, function() { return new Date(this.p[0].value()); });
+			_Function.f.tojson = new _Function("tojson", 1, 1, function() { return JSON.parse(this.p[0].value()); });
 			
 			_Function.f.coalesce = new _Function("coalesce", 2, 2, function() { return (this.p[0].value() == null ? this.p[1].value() : this.p[0].value()); });
 			
