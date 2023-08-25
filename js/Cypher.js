@@ -758,6 +758,10 @@ function CypherJS() {
 						);
 
 						node.outgoingRelationship().setMatchedRelationship(relationship);
+						node.outgoingRelationship().addMatchedRelationship(
+							relationship,
+							{fromNodeId: nodeId, toNodeId: relationship.getToNode(nodeId).id()}
+						);
 
 						if(node.getPattern().usedAsCondition()) {
 							returnValue = conveyorBelt(node, merge, pathExpansionDepth);
@@ -778,10 +782,10 @@ function CypherJS() {
 					for(var relationshipIdIdx=0; relationshipIdIdx<matchingRelationshipIds.length; relationshipIdIdx++) {
 						relationship = relationships[[matchingRelationshipIds[relationshipIdIdx]]];
 	
-						node.outgoingRelationship().addMatchedRelationship(
+						/*node.outgoingRelationship().addMatchedRelationship(
 							relationship,
 							{fromNodeId: nodeId, toNodeId: relationship.getToNode(nodeId).id()}
-						);
+						);*/
 	
 						if(node.outgoingRelationship().visitedBefore(relationship.getToNode(nodeId).id())) {
 							node.outgoingRelationship().backTrackExpandedPath();
