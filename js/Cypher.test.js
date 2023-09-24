@@ -212,7 +212,15 @@ var statements = [
     match p=(:Contact)-[:PARENT_GROUP*]->(group:Contact) \
     where not((group)-[:PARENT_GROUP]->(:Contact)) \
     unwind nodes(p) as member \
-    return nodes(p)[0].name as leaf, collect(member.name) as path"
+    return nodes(p)[0].name as leaf, collect(member.name) as path",
+
+    "unwind range(1,100) as i \
+    create (n:Node{id:i}) \
+    with collect(n) as nodes \
+    unwind nodes as n1 \
+    unwind nodes as n2 \
+    merge (n1)-[:TO]->(n2) \
+    return count(1)"
 ];
 
 function run(i, to) {

@@ -617,6 +617,9 @@ function CypherJS() {
  
                     if(node.isReferred()) {
 						var referredNode = node.getReferredNode().getData();
+						if(referredNode.constructor == Unwind) {
+							referredNode = referredNode.value();
+						}
 						if(referredNode) {
 							if(!(referredNode.constructor == Node ||
 								referredNode.constructor == NodeReference)) {
@@ -3528,6 +3531,9 @@ function CypherJS() {
 			this.type = function() {
 				return this.constructor.name;
 			};
+			this.id = function() {
+				return this.value().id();
+			};
 		};
 		function Load(_statement) {
 			var statement = _statement;
@@ -4671,7 +4677,7 @@ function CypherJS() {
 							if(engine.variableExists(variableKey)) {
 								// Variable is just being referred to
 								var referredObject = engine.getVariable(variableKey).getObject();
-								if(!referredObject.isNode()) {
+								if(referredObject.constructor != Unwind && !referredObject.isNode()) {
 									throw "Variable `" + variableKey + "` is bound to a " + referredObject.type() + ".";
 								}
 								engine.lastObject().setReferredNode(referredObject);
