@@ -412,6 +412,9 @@ function CypherJS() {
 				if(node.isReferred()) {
 					nodeInstance =
 						node.getReferredNode().getData();
+					if(nodeInstance.constructor == Unwind) {
+						nodeInstance = nodeInstance.value();
+					}
 				} else {
 					node.bindProperties();
 					nodeInstance = node.copy();
@@ -3534,6 +3537,12 @@ function CypherJS() {
 			this.id = function() {
 				return this.value().id();
 			};
+			this.collection = function() {
+				return collectionToUnwind;
+			};
+			this.index = function() {
+				return index;
+			};
 		};
 		function Load(_statement) {
 			var statement = _statement;
@@ -3951,7 +3960,6 @@ function CypherJS() {
 					var B = new Set(this.rhs.value());
 					var intersect = new Set();
 					for (let e of B) {
-						console.log(e);
 						if(A.has(e)) {
 							intersect.add(e);
 						}

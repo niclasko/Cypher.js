@@ -217,10 +217,23 @@ var statements = [
     "unwind range(1,100) as i \
     create (n:Node{id:i}) \
     with collect(n) as nodes \
+    where size(nodes) > 1 \
     unwind nodes as n1 \
     unwind nodes as n2 \
+    with n1, n2 \
+    where id(n1) < id(n2) \
     merge (n1)-[:TO]->(n2) \
-    return count(1)"
+    with count(1) as dummy \
+    match (_n1)-[:TO]->(_n2) \
+    return count(1)",
+
+    "match (n1)-[r:TO]->(n2) \
+    return count(1)",
+
+    "with [[3,2,5,1,6]] as sets1, [[1,2,3,4,5]] as sets2 \
+    unwind sets1 as set1 \
+    with set1, size(set1) as size1 \
+    return set1"
 ];
 
 function run(i, to) {
@@ -244,4 +257,4 @@ function run(i, to) {
     );
 }
 
-run(0);
+run(statements.length-1);
