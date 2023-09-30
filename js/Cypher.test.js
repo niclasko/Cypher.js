@@ -233,7 +233,12 @@ var statements = [
     "with [[3,2,5,1,6]] as sets1, [[1,2,3,4,5]] as sets2 \
     unwind sets1 as set1 \
     with set1, size(set1) as size1 \
-    return set1"
+    return set1",
+
+    "with range(0,9) as set1 \
+    unwind set1 as item \
+    with size(set1) as x \
+    return *"
 ];
 
 function run(i, to) {

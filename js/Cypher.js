@@ -1,6 +1,6 @@
 /*
-* Cypher.js graph query engine for Javascript
-* Copyright (c) 2021 "Niclas Kjall-Ohlsson"
+* Cypher.js graph query engine for Javascript. https://github.com/niclasko/Cypher.js.
+* Copyright (c) 2023 "Niclas Kjall-Ohlsson"
 * 
 * This file is part of Cypher.js.
 * 
@@ -2223,6 +2223,7 @@ function CypherJS() {
 			var aggregationFunctions = _aggregationFunctions;
 			var context = _context;
 			var variableReferences = _variableReferences;
+			var childrenHasVariableReferences = false;
 			
 			if(aggregationFunctions) {
 				context.addReduceExpression(this);
@@ -2236,7 +2237,22 @@ function CypherJS() {
 					aggregationFunctions[i].initialize();
 				}
 			}
-			
+
+			var _childrenHasVariableReferences = function(children) {
+				if(!children) {
+					return false;
+				}
+				for(var i=0; i<children.length; i++) {
+					if(children[i].element().hasReferredVariables && children[i].element().hasReferredVariables()) {
+						return true;
+					} else {
+						return _childrenHasVariableReferences(children[i].p);	
+					}
+				}
+				return false;
+			};
+			childrenHasVariableReferences = _childrenHasVariableReferences(root.p);
+
 			this.root = function() {
 				return root;
 			};
@@ -2259,7 +2275,7 @@ function CypherJS() {
 				return variableReferences;
 			};
 			this.hasReferredVariables = function() {
-				return variableReferences && (variableReferences.length > 0);
+				return (variableReferences && (variableReferences.length > 0)) || childrenHasVariableReferences;
 			};
 			this.setAlias = function(alias) {
 				alias = alias;
@@ -3323,7 +3339,7 @@ function CypherJS() {
 					mapReturnValues.push(returnValue);
 				}
 				me.setReturnValueNextAction(returnValue);
-				hasReferredVariables = expression.hasReferredVariables();
+				hasReferredVariables = hasReferredVariables || expression.hasReferredVariables();
 				return returnValue;
 			};
 			this.setIsIntermediary = function() {
@@ -5819,11 +5835,6 @@ function CypherJS() {
 				};
 				var addOpeningParentheses = function() {
 					addToOperators({leftParentheses: true});
-				};
-				var removeOpeningParentheses = function() {
-					if(lastOperator().leftParentheses) {
-						operators.pop();
-					}
 				};
 				var addClosingParentheses = function() {
 					while(operators.length > 0 && !operators.slice(-1)[0].leftParentheses) {
