@@ -270,4 +270,4 @@ function run(i, to) {
     );
 }
 
-run(statements.length-1);
+run(0);
