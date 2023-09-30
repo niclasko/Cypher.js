@@ -238,7 +238,15 @@ var statements = [
     "with range(0,9) as set1 \
     unwind set1 as item \
     with size(set1) as x \
-    return *"
+    return *",
+
+    "unwind range(0,5) as i \
+    merge (n:Node{_id:i}) \
+    with collect(n) as _nodes \
+    unwind _nodes as n1 \
+    unwind _nodes as n2 \
+    merge (n1)-[:rel]->(n2) \
+    return count(1)"
 ];
 
 function run(i, to) {
@@ -262,4 +270,4 @@ function run(i, to) {
     );
 }
 
-run(0);
+run(statements.length-1);

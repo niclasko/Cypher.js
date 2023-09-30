@@ -415,6 +415,9 @@ function CypherJS() {
 					if(nodeInstance.constructor == Unwind) {
 						nodeInstance = nodeInstance.value();
 					}
+					if(nodeInstance.constructor == NodeReference) {
+						nodeInstance = db.getNodeById(nodeInstance.nodeId());
+					}
 				} else {
 					node.bindProperties();
 					nodeInstance = node.copy();
