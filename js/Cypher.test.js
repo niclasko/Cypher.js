@@ -246,7 +246,13 @@ var statements = [
     unwind _nodes as n1 \
     unwind _nodes as n2 \
     merge (n1)-[:rel]->(n2) \
-    return count(1)"
+    return count(1)",
+
+    "unwind [2,3] as len \
+    unwind range(0, len) as i \
+    with len, collect(i) as is \
+    where size(is) < 3 \
+    return is, size(is)"
 ];
 
 function run(i, to) {
@@ -270,4 +276,4 @@ function run(i, to) {
     );
 }
 
-run(0);
+run(statements.length-1);
