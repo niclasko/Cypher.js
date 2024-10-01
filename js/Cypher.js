@@ -4179,7 +4179,16 @@ function CypherJS() {
 			});
 			_Function.f.array_lookup = new _Function("array_lookup", 2, 2, function() {
 				try {
-					return this.p[0].value()[this.p[1].value()];
+					var lookup = this.p[1].value();
+					if(lookup.constructor == Number) {
+						return this.p[0].value()[lookup];
+					} else if(lookup.constructor == Array) {
+						var a = [];
+						for(var i=0; i<lookup.length; i++) {
+							a.push(this.p[0].value()[lookup[i]]);
+						}
+						return a;
+					}
 				} catch(e) {
 					;
 				}
@@ -5572,6 +5581,9 @@ function CypherJS() {
 							fstring.string(substring);
 						}
 						fstring.expression(expression);
+					}
+					if(quoteFunction()) {
+						break;
 					}
 					token += currentChar();
 					position++;
