@@ -1997,6 +1997,51 @@ function CypherJS() {
 				return me.get();
 			};
 		};
+
+		function FString() {
+			var parts = [];
+			this.string = function(_string) {
+				parts.push(_string);
+			};
+			this.expression = function(expression) {
+				parts.push(expression);
+			};
+			this.get = function() {
+				return this.value();
+			};
+			this.next = function() {
+				return false;
+			};
+			this.hasNext = function() {
+				return true;
+			};
+			this.reset = function() {
+				;
+			};
+			this.getData = function() {
+				return me;
+			};
+			this.value = function() {
+				var combined = '';
+				for(var i=0; i<parts.length; i++) {
+					if(parts[i].value) {
+						combined += parts[i].value();
+					} else {
+						combined += parts[i];
+					}
+				}
+				return combined;
+			};
+			this.type = function() {
+				return me.constructor.name;
+			};
+			this.groupByKey = function() {
+				return me.get();
+			};
+			this.groupByValue = function() {
+				return me.get();
+			};
+		};
 		
 		function Constant(_value) {
 			var value = _value;
@@ -5153,6 +5198,8 @@ function CypherJS() {
 				} else if( (parsedConstruct = parseCase()) ) {
 					addCase(parsedConstruct);
 					allowLookup = false;
+				} else if( (parsedConstruct = parseFString()) ) {
+					addFString(parsedConstruct);
 				} else if(parseVariable(true)) {
 					if(variablesNotAllowed) {
 						throw exception("Variables not allowed within this context.");
@@ -5477,26 +5524,63 @@ function CypherJS() {
 				return true;
 			};
 			var parseString = function() {
+				var quoteFunction = null;
 				if(singleQuote()) {
-					inQuotes = true;
-					while(more() && !singleQuote()) {
-						escape();
-						token += currentChar();
-						position++;
-					}
-					inQuotes = false;
+					quoteFunction = singleQuote;
 				} else if(doubleQuote()) {
-					inQuotes = true;
-					while(more() && !doubleQuote()) {
-						escape();
-						token += currentChar();
-						position++;
-					}
-					inQuotes = false;
+					quoteFunction = doubleQuote;
 				} else {
 					return false;
 				}
+				inQuotes = true;
+				while(more() && !quoteFunction()) {
+					escape();
+					token += currentChar();
+					position++;
+				}
+				inQuotes = false;
 				return true;
+			};
+			var parseFString = function() {
+				if(currentChar() != 'f') {
+					return false;
+				}
+				position++;
+				var quoteFunction = null;
+				if(singleQuote()) {
+					quoteFunction = singleQuote;
+				} else if(doubleQuote()) {
+					quoteFunction = doubleQuote;
+				} else {
+					position--;
+					return false;
+				}
+				var fstring = new FString();
+				inQuotes = true;
+				while(more() && !quoteFunction()) {
+					escape();
+					if(openingCurlyBrackets(true)) {
+						var substring = getAndResetToken();
+						var expression = parseExpressionLayer();
+						if(!expression) {
+							throw exception("Expected expression.");
+						}
+						if(!closingCurlyBrackets(true)) {
+							throw exception("Expected closing curly bracket.");
+						}
+						if(substring.length > 0) {
+							fstring.string(substring);
+						}
+						fstring.expression(expression);
+					}
+					token += currentChar();
+					position++;
+				}
+				inQuotes = false;
+				if(token.length > 0) {
+					fstring.string(getAndResetToken());
+				}
+				return fstring;
 			};
 			var parseConstant = function() {
 				if(parseString()) {
@@ -5826,8 +5910,11 @@ function CypherJS() {
 				var addAssociativeArray = function(associativeArray) {
 					return addOutput({isAtom: true, v: new ExpressionElement(associativeArray)}).v;
 				};
-				var addCase = function(list) {
-					return addOutput({isAtom: true, v: new ExpressionElement(list)}).v;
+				var addCase = function(_case) {
+					return addOutput({isAtom: true, v: new ExpressionElement(_case)}).v;
+				};
+				var addFString = function(fstring) {
+					return addOutput({isAtom: true, v: new ExpressionElement(fstring)}).v;
 				};
 				var addFunction = function(__function) {
 					return addToOperators({isFunction: true,
@@ -6190,11 +6277,11 @@ function CypherJS() {
 			var closingParentheses = function() {
 				return check(')');
 			};
-			var openingCurlyBrackets = function() {
-				return check('{');
+			var openingCurlyBrackets = function(dontIgnoreWhiteSpace, dontIncrementPosition) {
+				return check('{', dontIgnoreWhiteSpace, dontIncrementPosition);
 			};
-			var closingCurlyBrackets = function() {
-				return check('}');
+			var closingCurlyBrackets = function(dontIgnoreWhiteSpace, dontIncrementPosition) {
+				return check('}', dontIgnoreWhiteSpace, dontIncrementPosition);
 			};
 			var openingSquareBracket = function() {
 				return check('[');
