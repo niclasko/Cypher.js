@@ -2230,10 +2230,10 @@ function CypherJS() {
 					};
 
 					if(me.method == "GET") {
-						http.get(this.url, processResponse(resp)).on("error", handleError(err));
+						http.get(this.url, processResponse).on("error", handleError);
 						this.onload(this);
 					} else if(me.method == "POST") {
-						http.post(this.url, payload, processResponse(resp)).on("error", handleError(err));
+						http.post(this.url, payload, processResponse).on("error", handleError);
 						this.onload(this);
 					}
 					
@@ -2248,13 +2248,7 @@ function CypherJS() {
 					if(xhr.status == 200) {
 						successCallback(xhr.responseText);
 					} else if(xhr.status != 200) {
-						if(xhr.status == 0) {
-							errorCallback("Access denied for URL resource \"" + url + "\".");
-						} else if(xhr.status == 404) {
-							errorCallback("URL resource \"" + url + "\" not found.");
-						} else {
-							errorCallback(xhr.responseText);
-						}
+						errorCallback(xhr.status + ": " + xhr.responseText);
 					}
 				}
 			};
@@ -2264,8 +2258,12 @@ function CypherJS() {
 					processResponse(xhr, successCallback, errorCallback);
 				};
 				
-				xhr.open("GET", url, true);
-				xhr.send();
+				try {
+					xhr.open("GET", url, true);
+					xhr.send();
+				} catch(e) {
+					errorCallback(e);
+				}
 			};
 			this.post = function(url, payload, successCallback, errorCallback) {
 				var xhr = XMLHttpRequestFactory();
@@ -2273,9 +2271,13 @@ function CypherJS() {
 					processResponse(xhr, successCallback, errorCallback);
 				};
 				
-				xhr.open("POST", url, true);
-				xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-				xhr.send(payload);
+				try {
+					xhr.open("POST", url, true);
+					xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+					xhr.send(payload);
+				} catch(e) {
+					errorCallback(e);
+				}
 			};
 		};
 		var http = new HTTP();
@@ -3898,19 +3900,23 @@ function CypherJS() {
 					throw me.type() + ": " + statusText;
 				};
 				if(from.constructor == String) {
-					if(me.getRequestType() == "GET") {
-						http.get(
-							me.from(),
-							handleResponse,
-							handleError
-						);
-					} else if(me.getRequestType() == "POST") {
-						http.post(
-							me.from(),
-							JSON.stringify(me.getPayload()),
-							handleResponse,
-							handleError
-						);
+					try {
+						if(me.getRequestType() == "GET") {
+							http.get(
+								me.from(),
+								handleResponse,
+								handleError
+							);
+						} else if(me.getRequestType() == "POST") {
+							http.post(
+								me.from(),
+								JSON.stringify(me.getPayload()),
+								handleResponse,
+								handleError
+							);
+						}
+					} catch(e) {
+						handleError(e);
 					}
 				} else if(from.constructor != String) {
 					if(me.loadType() == "JSON") {
