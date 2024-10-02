@@ -4233,7 +4233,7 @@ function CypherJS() {
 			_Function.f.array_lookup = new _Function("array_lookup", 2, 2, function() {
 				try {
 					var lookup = this.p[1].value();
-					if(lookup.constructor == Number) {
+					if(lookup.constructor == Number || lookup.constructor == String) {
 						return this.p[0].value()[lookup];
 					} else if(lookup.constructor == Array) {
 						var a = [];
