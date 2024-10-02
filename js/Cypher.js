@@ -2252,6 +2252,8 @@ function CypherJS() {
 							errorCallback("Access denied for URL resource \"" + url + "\".");
 						} else if(xhr.status == 404) {
 							errorCallback("URL resource \"" + url + "\" not found.");
+						} else {
+							errorCallback(xhr.responseText);
 						}
 					}
 				}
@@ -2272,6 +2274,7 @@ function CypherJS() {
 				};
 				
 				xhr.open("POST", url, true);
+				xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 				xhr.send(payload);
 			};
 		};
@@ -3662,6 +3665,15 @@ function CypherJS() {
 			this.loadType = function() {
 				return loadType;
 			};
+			this.getRequestType = function() {
+				return requestType;
+			};
+			this.getPayload = function() {
+				if(payload) {
+					return payload.value();
+				}
+				return null;
+			};
 			this.headers = function() {
 				withHeaders = true;
 			};
@@ -3886,18 +3898,18 @@ function CypherJS() {
 					throw me.type() + ": " + statusText;
 				};
 				if(from.constructor == String) {
-					if(me.requestType == "GET") {
+					if(me.getRequestType() == "GET") {
 						http.get(
 							me.from(),
-							handleResponse(responseText),
-							handleError(statusText)
+							handleResponse,
+							handleError
 						);
-					} else if(me.requestType == "POST") {
+					} else if(me.getRequestType() == "POST") {
 						http.post(
 							me.from(),
-							me.payload.value(),
-							handleResponse(responseText),
-							handleError(statusText)
+							JSON.stringify(me.getPayload()),
+							handleResponse,
+							handleError
 						);
 					}
 				} else if(from.constructor != String) {
@@ -4697,6 +4709,10 @@ function CypherJS() {
 						if(from()) {
 							parseLoadFrom();
 							parseFieldTerminator();
+							ignoreWhiteSpace();
+							if(!parseLoadAlias()) {
+								throw exception("Expected alias.");
+							}
 						} else {
 							throw exception("Expected FROM-keyword.");
 						}
@@ -4710,6 +4726,10 @@ function CypherJS() {
 						if(post()) {
 							parsePost();
 						}
+						ignoreWhiteSpace();
+						if(!parseLoadAlias()) {
+							throw exception("Expected alias.");
+						}
 					} else {
 						throw exception("Expected CSV- or JSON-keyword.");
 					}
@@ -4720,10 +4740,6 @@ function CypherJS() {
 			var parseLoadFrom = function() {
 				parseExpression();
 				engine.expression();
-				ignoreWhiteSpace();
-				if(!parseLoadAlias()) {
-					throw exception("Expected alias.");
-				}
 			};
 			var parsePost = function() {
 				parseExpression();
