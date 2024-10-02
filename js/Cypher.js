@@ -2273,8 +2273,12 @@ function CypherJS() {
 				
 				try {
 					xhr.open("POST", url, true);
-					xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-					xhr.send(payload);
+					if(payload.constructor == Object) {
+						xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+						xhr.send(JSON.stringify(payload));
+					} else {
+						xhr.send(payload);
+					}
 				} catch(e) {
 					errorCallback(e);
 				}
@@ -3661,6 +3665,9 @@ function CypherJS() {
 			this.json = function() {
 				loadType = "JSON";
 			};
+			this.text = function() {
+				loadType = "TEXT";
+			};
 			this.post = function() {
 				requestType = "POST";
 			};
@@ -3891,6 +3898,9 @@ function CypherJS() {
 								nextOperation.doIt();
 							}
 						);
+					} else if(me.loadType() == "TEXT") {
+						data = responseText;
+						nextOperation.doIt();
 					}
 					if(runId == me.runCount()) {
 						nextOperation.finish();
@@ -3910,7 +3920,7 @@ function CypherJS() {
 						} else if(me.getRequestType() == "POST") {
 							http.post(
 								me.from(),
-								JSON.stringify(me.getPayload()),
+								me.getPayload(),
 								handleResponse,
 								handleError
 							);
@@ -4014,6 +4024,7 @@ function CypherJS() {
 			KeyWord.f.LOAD = new KeyWord("LOAD", function(e) { e.load(); });
 			KeyWord.f.CSV = new KeyWord("CSV", function(e) { e.csv(); });
 			KeyWord.f.JSON = new KeyWord("JSON", function(e) { e.json(); });
+			KeyWord.f.TEXT = new KeyWord("TEXT", function(e) { e.text(); });
 			KeyWord.f.HEADERS = new KeyWord("HEADERS", function(e) { e.headers(); });
 			KeyWord.f.FROM = new KeyWord("FROM", function(e) { ; });
 			KeyWord.f.POST = new KeyWord("POST", function(e) { e.post(); });
@@ -4313,7 +4324,14 @@ function CypherJS() {
 				return null;
 			});
 			_Function.f.todate = new _Function("todate", 1, 1, function() { return new Date(this.p[0].value()); });
-			_Function.f.tojson = new _Function("tojson", 1, 1, function() { return JSON.parse(this.p[0].value()); });
+			_Function.f.tojson = new _Function(
+				"tojson",
+				1,
+				1,
+				function() {
+					return JSON.parse(this.p[0].value());
+				}
+			);
 			
 			_Function.f.coalesce = new _Function("coalesce", 2, 2, function() { return (this.p[0].value() == null ? this.p[1].value() : this.p[0].value()); });
 			
@@ -4722,7 +4740,7 @@ function CypherJS() {
 						} else {
 							throw exception("Expected FROM-keyword.");
 						}
-					} else if(json()) {
+					} else if(json() || text()) {
 						ignoreWhiteSpace();
 						if(from()) {
 							parseLoadFrom();
@@ -4737,7 +4755,7 @@ function CypherJS() {
 							throw exception("Expected alias.");
 						}
 					} else {
-						throw exception("Expected CSV- or JSON-keyword.");
+						throw exception("Expected CSV-, JSON-, or TEXT-keyword.");
 					}
 					return true;
 				}
@@ -5606,7 +5624,10 @@ function CypherJS() {
 					return false;
 				}
 				inQuotes = true;
-				while(more() && !quoteFunction()) {
+				while(!quoteFunction()) {
+					if(!more()) {
+						throw exception("Expected closing quote.");
+					}
 					escape();
 					token += currentChar();
 					position++;
@@ -5630,7 +5651,10 @@ function CypherJS() {
 				}
 				var fstring = new FString();
 				inQuotes = true;
-				while(more() && !quoteFunction()) {
+				while(!quoteFunction()) {
+					if(!more()) {
+						throw exception("Expected closing quote.");
+					}
 					escape();
 					if(openingCurlyBrackets(true)) {
 						var substring = getAndResetToken();
@@ -6143,6 +6167,9 @@ function CypherJS() {
 			};
 			var json = function() {
 				return keyword(KeyWord.f.JSON);
+			};
+			var text = function() {
+				return keyword(KeyWord.f.TEXT);
 			};
 			var headers = function() {
 				return keyword(KeyWord.f.HEADERS);
@@ -6829,6 +6856,10 @@ function CypherJS() {
 	};
 	this.json = function() {
 		statement.context().json();
+		return this;
+	};
+	this.text = function() {
+		statement.context().text();
 		return this;
 	};
 	this.post = function() {
