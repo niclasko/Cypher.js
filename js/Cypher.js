@@ -5656,6 +5656,18 @@ function CypherJS() {
 						throw exception("Expected closing quote.");
 					}
 					escape();
+					if(openingDoubleCurlyBrackets()) {
+						token += "{";
+						while(more() && !closingDoubleCurlyBrackets()) {
+							escape();
+							token += currentChar();
+							position++;
+						}
+						if(!more()) {
+							throw exception("Expected closing double curly bracket.");
+						}
+						token += "}";
+					}
 					if(openingCurlyBrackets(true)) {
 						var substring = getAndResetToken();
 						var expression = parseExpressionLayer();
@@ -6389,6 +6401,20 @@ function CypherJS() {
 			var closingCurlyBrackets = function(dontIgnoreWhiteSpace, dontIncrementPosition) {
 				return check('}', dontIgnoreWhiteSpace, dontIncrementPosition);
 			};
+			var openingDoubleCurlyBrackets = function() {
+				var present = currentChar() == '{' && nextChar() == '{';
+				if(present) {
+					position += 2;
+				}
+				return present;
+			};
+			var closingDoubleCurlyBrackets = function() {
+				var present = currentChar() == '}' && nextChar() == '}';
+				if(present) {
+					position += 2;
+				}
+				return present;
+			};
 			var openingSquareBracket = function() {
 				return check('[');
 			};
@@ -6405,6 +6431,9 @@ function CypherJS() {
 			}
 			var currentChar = function() {
 				return statementText.charAt(position);
+			};
+			var nextChar = function() {
+				return statementText.charAt(position+1);
 			};
 			var got = function() {
 				return " Parsed \"" + statementText.substring(0,position) + "\". Got \"" + currentChar() + "\"";
