@@ -255,8 +255,6 @@ var statements = [
     return is, size(is)"
 ];
 
-statements = ['load json from "https://raw.githubusercontent.com/niclasko/niclasko.github.io/master/data/week_2018_38.json" as l with collect(l) as rows unwind rows as row unwind row["values"] as v return v'];
-
 function run(i, to) {
     if (!to) {
         to = statements.length;
