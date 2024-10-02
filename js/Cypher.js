@@ -2188,7 +2188,7 @@ function CypherJS() {
 					
 				}
 				
-				this.send = function(data) {
+				this.send = function(payload) {
 					var response = null;
 					
 					var http = null;
@@ -2202,34 +2202,39 @@ function CypherJS() {
 
 					var me = this;
 
-					if(me.method == "GET") {
-						http.get(this.url, function(resp) {
-							var data = '';
-	
-							// A chunk of data has been recieved.
-							resp.on('data', function(chunk) {
-								data += chunk;
-							});
-	
-							// The whole response has been received. Print out the result.
-							resp.on('end', function() {
-								me.responseText = data;
-								me.response = data;
-									
-								me.readyState = me.DONE;
-								me.status = 200;
-	
-								me.onreadystatechange();
-							});
-	
-						}).on("error", function(err) {
-							console.log("Error: " + err);
-							me.status = 0;
+					var processResponse = function(resp) {
+						var data = '';
+
+						// A chunk of data has been recieved.
+						resp.on('data', function(chunk) {
+							data += chunk;
+						});
+
+						// The whole response has been received. Print out the result.
+						resp.on('end', function() {
+							me.responseText = data;
+							me.response = data;
+								
+							me.readyState = me.DONE;
+							me.status = 200;
+
 							me.onreadystatechange();
 						});
-						
-						this.onload(this);
 
+					};
+
+					var handleError = function(err) {
+						console.log("Error: " + err);
+						me.status = 0;
+						me.onreadystatechange();
+					};
+
+					if(me.method == "GET") {
+						http.get(this.url, processResponse).on("error", handleError);
+						this.onload(this);
+					} else if(me.method == "POST") {
+						http.post(this.url, payload, processResponse).on("error", handleError);
+						this.onload(this);
 					}
 					
 				}
@@ -2243,11 +2248,7 @@ function CypherJS() {
 					if(xhr.status == 200) {
 						successCallback(xhr.responseText);
 					} else if(xhr.status != 200) {
-						if(xhr.status == 0) {
-							errorCallback("Access denied for URL resource \"" + url + "\".");
-						} else if(xhr.status == 404) {
-							errorCallback("URL resource \"" + url + "\" not found.");
-						}
+						errorCallback(xhr.status + ": " + xhr.responseText);
 					}
 				}
 			};
@@ -2257,8 +2258,26 @@ function CypherJS() {
 					processResponse(xhr, successCallback, errorCallback);
 				};
 				
-				xhr.open("GET", url, true);
-				xhr.send();
+				try {
+					xhr.open("GET", url, true);
+					xhr.send();
+				} catch(e) {
+					errorCallback(e);
+				}
+			};
+			this.post = function(url, payload, successCallback, errorCallback) {
+				var xhr = XMLHttpRequestFactory();
+				xhr.onreadystatechange = function() {
+					processResponse(xhr, successCallback, errorCallback);
+				};
+				
+				try {
+					xhr.open("POST", url, true);
+					xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+					xhr.send(payload);
+				} catch(e) {
+					errorCallback(e);
+				}
 			};
 		};
 		var http = new HTTP();
@@ -3611,6 +3630,8 @@ function CypherJS() {
 		function Load(_statement) {
 			var statement = _statement;
 			var loadType = null;
+			var requestType = "GET";
+			var payload = null;
 			var withHeaders = false;
 			var fieldTerminator = ",";
 			var from = null;
@@ -3640,8 +3661,20 @@ function CypherJS() {
 			this.json = function() {
 				loadType = "JSON";
 			};
+			this.post = function() {
+				requestType = "POST";
+			};
 			this.loadType = function() {
 				return loadType;
+			};
+			this.getRequestType = function() {
+				return requestType;
+			};
+			this.getPayload = function() {
+				if(payload) {
+					return payload.value();
+				}
+				return null;
 			};
 			this.headers = function() {
 				withHeaders = true;
@@ -3656,7 +3689,11 @@ function CypherJS() {
 				return fieldTerminator;
 			};
 			this.expression = function(expression) {
-				from = expression;
+				if(from == null) {
+					from = expression;
+				} else if(payload == null) {
+					payload = expression;
+				}
 			};
 			this.getLast = function() {
 				return from;
@@ -3837,35 +3874,50 @@ function CypherJS() {
 				var me = this;
 				var from = me.from();
 				me.increaseRunCount();
+				var handleResponse = function(responseText) { // Success
+					var runId = me.getRunId();
+					if(me.loadType() == "CSV") {
+						csvData = responseText;
+						parseCSV(
+							me.fieldTerminator(),
+							function() {
+								nextOperation.doIt();
+							}
+						);
+					} else if(me.loadType() == "JSON") {
+						processJSON(
+							JSON.parse(responseText),
+							function() {
+								nextOperation.doIt();
+							}
+						);
+					}
+					if(runId == me.runCount()) {
+						nextOperation.finish();
+					}
+				};
+				var handleError = function(statusText) { // Error
+					throw me.type() + ": " + statusText;
+				};
 				if(from.constructor == String) {
-					http.get(
-						me.from(),
-						function(responseText) { // Success
-							var runId = me.getRunId();
-							if(me.loadType() == "CSV") {
-								csvData = responseText;
-								parseCSV(
-									me.fieldTerminator(),
-									function() {
-										nextOperation.doIt();
-									}
-								);
-							} else if(me.loadType() == "JSON") {
-								processJSON(
-									JSON.parse(responseText),
-									function() {
-										nextOperation.doIt();
-									}
-								);
-							}
-							if(runId == me.runCount()) {
-								nextOperation.finish();
-							}
-						},
-						function(statusText) { // Error
-							throw me.type() + ": " + statusText;
+					try {
+						if(me.getRequestType() == "GET") {
+							http.get(
+								me.from(),
+								handleResponse,
+								handleError
+							);
+						} else if(me.getRequestType() == "POST") {
+							http.post(
+								me.from(),
+								JSON.stringify(me.getPayload()),
+								handleResponse,
+								handleError
+							);
 						}
-					);
+					} catch(e) {
+						handleError(e);
+					}
 				} else if(from.constructor != String) {
 					if(me.loadType() == "JSON") {
 						var runId = me.getRunId();
@@ -3964,6 +4016,7 @@ function CypherJS() {
 			KeyWord.f.JSON = new KeyWord("JSON", function(e) { e.json(); });
 			KeyWord.f.HEADERS = new KeyWord("HEADERS", function(e) { e.headers(); });
 			KeyWord.f.FROM = new KeyWord("FROM", function(e) { ; });
+			KeyWord.f.POST = new KeyWord("POST", function(e) { e.post(); });
 			KeyWord.f.AS = new KeyWord("AS", function(e) { ; });
 			KeyWord.f.FIELDTERMINATOR = new KeyWord("FIELDTERMINATOR", function(e) { ; });
 			KeyWord.f.SET = new KeyWord("SET", function(e) { ; });
@@ -4662,6 +4715,10 @@ function CypherJS() {
 						if(from()) {
 							parseLoadFrom();
 							parseFieldTerminator();
+							ignoreWhiteSpace();
+							if(!parseLoadAlias()) {
+								throw exception("Expected alias.");
+							}
 						} else {
 							throw exception("Expected FROM-keyword.");
 						}
@@ -4671,6 +4728,13 @@ function CypherJS() {
 							parseLoadFrom();
 						} else {
 							throw exception("Expected FROM-keyword.");
+						}
+						if(post()) {
+							parsePost();
+						}
+						ignoreWhiteSpace();
+						if(!parseLoadAlias()) {
+							throw exception("Expected alias.");
 						}
 					} else {
 						throw exception("Expected CSV- or JSON-keyword.");
@@ -4682,10 +4746,10 @@ function CypherJS() {
 			var parseLoadFrom = function() {
 				parseExpression();
 				engine.expression();
-				ignoreWhiteSpace();
-				if(!parseLoadAlias()) {
-					throw exception("Expected alias.");
-				}
+			};
+			var parsePost = function() {
+				parseExpression();
+				engine.expression();
 			};
 			var parseFieldTerminator = function() {
 				ignoreWhiteSpace();
@@ -6086,6 +6150,9 @@ function CypherJS() {
 			var from = function() {
 				return keyword(KeyWord.f.FROM);
 			};
+			var post = function() {
+				return keyword(KeyWord.f.POST);
+			};
 			var as = function() {
 				return keyword(KeyWord.f.AS);
 			};
@@ -6762,6 +6829,10 @@ function CypherJS() {
 	};
 	this.json = function() {
 		statement.context().json();
+		return this;
+	};
+	this.post = function() {
+		statement.context().post();
 		return this;
 	};
 	this.headers = function() {
