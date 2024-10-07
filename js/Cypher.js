@@ -2494,10 +2494,9 @@ function CypherJS() {
 			this.getVariable = function(key) {
 				if(variables[key] == undefined) {
 					try {
-						/*if(window != undefined && key in window) {
+						if(window != undefined && key in window) {
 							return {value: function() { return window[key]; }};
-						}*/
-						return {value: function() { return eval(key); }};
+						}
 					} catch(e) {
 						;
 					}
