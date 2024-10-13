@@ -4698,6 +4698,7 @@ function CypherJS() {
 				parseToken();
 			};
 			var parseToken = function() {
+				ignoreWhiteSpaceAndComments();
 				if(parseLoad() || parseCreate() || parseMerge() || parseMatch() || parseWith() || parseReturn() || parseUnwind()) {
 					parseToken();
 				}
@@ -4706,7 +4707,7 @@ function CypherJS() {
 				}
 			};
 			var parseUnwind = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(unwind()) {
 					parseExpression();
 					engine.expression();
@@ -4717,22 +4718,22 @@ function CypherJS() {
 				return false;
 			};
 			var parseLoad = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(load()) {
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(csv()) {
-						ignoreWhiteSpace();
+						ignoreWhiteSpaceAndComments();
 						if(_with(true)) {
-							ignoreWhiteSpace();
+							ignoreWhiteSpaceAndComments();
 							if(!headers()) {
 								throw exception("Expected HEADERS-keyword.");
 							}
 						}
-						ignoreWhiteSpace();
+						ignoreWhiteSpaceAndComments();
 						if(from()) {
 							parseLoadFrom();
 							parseFieldTerminator();
-							ignoreWhiteSpace();
+							ignoreWhiteSpaceAndComments();
 							if(!parseLoadAlias()) {
 								throw exception("Expected alias.");
 							}
@@ -4740,7 +4741,7 @@ function CypherJS() {
 							throw exception("Expected FROM-keyword.");
 						}
 					} else if(json() || text()) {
-						ignoreWhiteSpace();
+						ignoreWhiteSpaceAndComments();
 						if(from()) {
 							parseLoadFrom();
 						} else {
@@ -4749,7 +4750,7 @@ function CypherJS() {
 						if(post()) {
 							parsePost();
 						}
-						ignoreWhiteSpace();
+						ignoreWhiteSpaceAndComments();
 						if(!parseLoadAlias()) {
 							throw exception("Expected alias.");
 						}
@@ -4769,9 +4770,9 @@ function CypherJS() {
 				engine.expression();
 			};
 			var parseFieldTerminator = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(fieldterminator()) {
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(parseString()) {
 						engine.statement().context().setFieldTerminator(
 							getAndResetToken()
@@ -4782,7 +4783,7 @@ function CypherJS() {
 				}
 			};
 			var parseWith = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(_with()) {
 					if(parseWithOrReturnBody(true)) {
 						parseSetter();
@@ -4792,7 +4793,7 @@ function CypherJS() {
 				return false;
 			};
 			var parseReturn = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(_return()) {
 					return parseWithOrReturnBody();
 				}
@@ -4800,7 +4801,7 @@ function CypherJS() {
 			};
 			var parseWithOrReturnBody = function(expressionMustHaveAlias) {
 				do {
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(star()) {
 						addAllVariables();
 					} else {
@@ -4812,12 +4813,12 @@ function CypherJS() {
 					}
 				} while(comma());
 				parseWhere();
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				parseLimit();
 
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(into()) {
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(!parseTableName()) {
 						throw exception("Expected table name.");
 					}
@@ -4949,7 +4950,7 @@ function CypherJS() {
 			var parseGraphPatternExpression = function() {
 				setRollbackPosition();
 				/*if(parseVariable(true)) {
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(equals()) {
 						throw exception("Path variable not allowed in this context.");
 					}
@@ -5098,7 +5099,7 @@ function CypherJS() {
 			var parseGraphPattern = function(pathVariableNotAllowed) {
 				var pathVariableName = undefined;
 				if(parseVariable(true)) {
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(pathVariableNotAllowed && equals()) {
 						throw exception("Path variable not allowed in this context.");
 					}
@@ -5106,7 +5107,7 @@ function CypherJS() {
 					if(!equals()) {
 						throw exception("Expected variable assignment.");
 					}
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 				}
 				var shortestPath = false;
 				var nodeCount = 0;
@@ -5149,9 +5150,9 @@ function CypherJS() {
 				return false;
 			};
 			var parseMerge = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(merge()) {
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(!parseGraphPattern()) {
 						throw exception('Expecting graph pattern.');
 					}
@@ -5162,10 +5163,10 @@ function CypherJS() {
 				return false;
 			};
 			var parseCreate = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(create()) {
 					do {
-						ignoreWhiteSpace();
+						ignoreWhiteSpaceAndComments();
 						if(!parseGraphPattern()) {
 							throw exception('Expecting graph pattern.');
 						}
@@ -5177,10 +5178,10 @@ function CypherJS() {
 				return false;
 			};
 			var parseMatch = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(match()) {
 					do {
-						ignoreWhiteSpace();
+						ignoreWhiteSpaceAndComments();
 						if(!parseGraphPattern()) {
 							throw exception('Expecting graph pattern.');
 						}
@@ -5198,7 +5199,7 @@ function CypherJS() {
 				}
 			};
 			var parseSetter = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(set()) {
 					engine.setter();
 					do {
@@ -5216,11 +5217,11 @@ function CypherJS() {
 							} else {
 								throw exception("Expected property key.");
 							}
-							ignoreWhiteSpace();
+							ignoreWhiteSpaceAndComments();
 							if(!equals()) {
 								throw exception('Expected equals character (=).');
 							}
-							ignoreWhiteSpace();
+							ignoreWhiteSpaceAndComments();
 							parseExpression();
 							var expression = parser.getExpression();
 							engine.operationContext().addSetter(
@@ -5307,10 +5308,10 @@ function CypherJS() {
 				if(element && allowLookup) {
 					parseLookup(element);
 				}
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(operator()) {
 					addOperator(Operator.latestParsed);
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					parseExpression();
 				}
 				return element;
@@ -5350,26 +5351,26 @@ function CypherJS() {
 			};
 			var parseCase = function() {
 				if(_case()) {
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					var caseStatement = new Case();
 					while(when()) {
 						caseStatement.when(parseExpressionLayer());
-						ignoreWhiteSpace();
+						ignoreWhiteSpaceAndComments();
 						if(_then()) {
 							caseStatement.then(parseExpressionLayer());
 						} else {
 							throw exception("Expected THEN keyword");
 						}
-						ignoreWhiteSpace();
+						ignoreWhiteSpaceAndComments();
 					}
 					if(caseStatement.whenCount() == 0) {
 						throw exception("Expected WHEN keyword");
 					}
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(_else()) {
 						caseStatement.else(parseExpressionLayer());
 					}
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(!end()) {
 						throw exception("Expected END keyword");
 					}
@@ -5424,11 +5425,11 @@ function CypherJS() {
 						);
 					addOpeningParentheses();
 					increaseAggregationFunctionLevel();
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(distinct()) {
 						aggregateExpressionElement.setDistinct();
 					}
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 					if(AggregateFunction.latestParsed.parametric()) {
 						var parameterCount = 0;
 						do {
@@ -5490,7 +5491,7 @@ function CypherJS() {
 			};
 			var parseVariable = function(dontAddToEngine) {
 				var addToEngine = !dontAddToEngine;
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(isNumeric(currentChar())) return false;
 				if(backTickQuote()) {
 					while(more() && !backTickQuote()) {
@@ -5524,7 +5525,7 @@ function CypherJS() {
 				return parseVariable(true);
 			};
 			var parseLabel = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(!colon()) return false;
 				var labelName = '';
 				if(backTickQuote()) {
@@ -5546,7 +5547,7 @@ function CypherJS() {
 				return true;
 			};
 			var parseType = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(!colon()) return false;
 				var typeName = '';
 				if(backTickQuote()) {
@@ -5567,7 +5568,7 @@ function CypherJS() {
 				return true;
 			};
 			var parseProperties = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(openingCurlyBrackets()) {
 					if(!parseProperty()) {
 						throw exception('Expecting at least one property.');
@@ -5595,7 +5596,7 @@ function CypherJS() {
 				return true;
 			};
 			var parsePropertyKey = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(isNumeric(currentChar())) return false;
 				if(backTickQuote()) {
 					while(more() && !backTickQuote()) {
@@ -5710,7 +5711,7 @@ function CypherJS() {
 				return true;
 			};
 			var parseAlias = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(as()) {
 					if(!parseAliasLabel()) {
 						throw exception("Expected alias variable key.");
@@ -5721,7 +5722,7 @@ function CypherJS() {
 				return false;
 			};
 			var parseLoadAlias = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(as()) {
 					if(!parseLoadAliasLabel()) {
 						throw exception("Expected alias variable key.");
@@ -5732,7 +5733,7 @@ function CypherJS() {
 				return false;
 			};
 			var parseUnwindAlias = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(as()) {
 					if(!parseUnwindAliasLabel()) {
 						throw exception("Unwinded collection must be aliased.");
@@ -6249,7 +6250,7 @@ function CypherJS() {
 				return false;
 			};
 			var parseNumber = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				var negated = false;
 				if(negation()) {
 					accumulatePreviousChar();
@@ -6271,7 +6272,7 @@ function CypherJS() {
 							throw exception('Expected one or more integers after decimal point.');
 						}
 					}
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 				} else {
 					if(negated) {
 						throw exception('Expected number.');
@@ -6281,13 +6282,13 @@ function CypherJS() {
 				return true;
 			};
 			var parsePositiveInteger = function() {
-				ignoreWhiteSpace();
+				ignoreWhiteSpaceAndComments();
 				if(numeric()) {
 					accumulatePreviousChar();
 					while(numeric()) {
 						accumulatePreviousChar();
 					}
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 				} else {
 					return false;
 				}
@@ -6327,7 +6328,7 @@ function CypherJS() {
 			var check = function(c, dontIgnoreWhiteSpace, dontIncrementPosition) {
 				var incrementPosition = !dontIncrementPosition;
 				if(!dontIgnoreWhiteSpace) {
-					ignoreWhiteSpace();
+					ignoreWhiteSpaceAndComments();
 				}
 				if(currentChar() == c) {
 					if(incrementPosition) position++;
@@ -6420,9 +6421,16 @@ function CypherJS() {
 			var closingSquareBracket = function() {
 				return check(']');
 			};
-			var ignoreWhiteSpace = function() {
+			var ignoreWhiteSpaceAndComments = function() {
+				if(!more()) return;
 				while(currentChar() == ' ' || currentChar() == '\n' || currentChar() == '\t' || currentChar() == '\r') {
 					position++;
+				}
+				if(currentChar() == '/' && nextChar() == '/') { // Comment
+					while(currentChar() != '\n' && more()) {
+						position++;
+					}
+					ignoreWhiteSpaceAndComments();
 				}
 			};
 			var previousChar = function() {
