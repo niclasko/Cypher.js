@@ -1,6 +1,6 @@
 /*
 * Cypher.js graph query engine for Javascript. https://github.com/niclasko/Cypher.js.
-* Copyright (c) 2023 "Niclas Kjall-Ohlsson"
+* Copyright (c) 2024 "Niclas Kjall-Ohlsson"
 * 
 * This file is part of Cypher.js.
 * 
