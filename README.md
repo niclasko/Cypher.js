@@ -54,7 +54,7 @@ var options = {
 	// Web Workers are not supported in Node.js
 	runInWebWorker: false,
 };
-var cypher = new Cypher(true);
+var cypher = new Cypher(options);
 
 cypher.execute(
 	'unwind range(0,10) as item return item',
