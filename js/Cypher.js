@@ -1811,7 +1811,7 @@ function CypherJS() {
 				boundAssociativeArray[key] = null;
 				keys.push(key);
 			};
-			this.get = function() {
+			this.get = function(_addAssociativeArrayFunctions = true) {
 				bind();
 				var boundAssociativeArrayCopy = {};
 				for(var key in boundAssociativeArray) {
@@ -1822,9 +1822,12 @@ function CypherJS() {
 							boundAssociativeArray[key].constructor;
 					}
 				}
-				return addAssociativeArrayFunctions(
-					boundAssociativeArrayCopy
-				);
+				if(_addAssociativeArrayFunctions) {
+					return addAssociativeArrayFunctions(
+						boundAssociativeArrayCopy
+					);
+				}
+				return boundAssociativeArray;
 			};
 			this.getProperty = function(key) {
 				bind();
@@ -1854,8 +1857,8 @@ function CypherJS() {
 			this.getObject = function() {
 				return me;
 			};
-			this.value = function() {
-				return me.get();
+			this.value = function(_addAssociativeArrayFunctions = true) {
+				return me.get(_addAssociativeArrayFunctions);
 			};
 			this.type = function() {
 				return me.constructor.name;
@@ -2174,9 +2177,15 @@ function CypherJS() {
 				this.method = null;
 				this.url = null;
 				this.async = true;
+
+				this.headers = {};
 				
 				this.onreadystatechange = function() {};
 				this.onload = function() {};
+
+				this.setRequestHeader = function(header, value) {
+					this.headers[header] = value;
+				};
 				
 				this.open = function(method, url, async) {
 					
@@ -2192,10 +2201,12 @@ function CypherJS() {
 					var response = null;
 					
 					var http = null;
+					var urlLib = null;
 					var ssl_url = (this.url.indexOf("https") == 0 ? true : false);
 					
 					try {
 						http = (ssl_url ? require('https') : require('http'));
+						urlLib = require('url');
 					} catch(e) {
 						;
 					}
@@ -2229,11 +2240,19 @@ function CypherJS() {
 						me.onreadystatechange();
 					};
 
+					var parsedUrl = new urlLib.URL(this.url);
+					var options = {
+						hostname: parsedUrl.hostname,
+						port: (parsedUrl.port ? parsedUrl.port : (ssl_url ? 443 : 80)),
+					};
+					if(this.headers) {
+						options["headers"] = this.headers;
+					}
 					if(me.method == "GET") {
-						http.get(this.url, processResponse).on("error", handleError);
+						http.get(options, processResponse).on("error", handleError);
 						this.onload(this);
 					} else if(me.method == "POST") {
-						http.post(this.url, payload, processResponse).on("error", handleError);
+						http.post(options, payload, processResponse).on("error", handleError);
 						this.onload(this);
 					}
 					
@@ -2252,7 +2271,7 @@ function CypherJS() {
 					}
 				}
 			};
-			this.get = function(url, successCallback, errorCallback) {
+			this.get = function(url, successCallback, errorCallback, headers) {
 				var xhr = XMLHttpRequestFactory();
 				xhr.onreadystatechange = function() {
 					processResponse(xhr, successCallback, errorCallback);
@@ -2260,12 +2279,17 @@ function CypherJS() {
 				
 				try {
 					xhr.open("GET", url, true);
+					if(headers) {
+						for(var key in headers) {
+							xhr.setRequestHeader(key, headers[key]);
+						}
+					}
 					xhr.send();
 				} catch(e) {
 					errorCallback(e);
 				}
 			};
-			this.post = function(url, payload, successCallback, errorCallback) {
+			this.post = function(url, payload, successCallback, errorCallback, headers) {
 				var xhr = XMLHttpRequestFactory();
 				xhr.onreadystatechange = function() {
 					processResponse(xhr, successCallback, errorCallback);
@@ -2273,6 +2297,11 @@ function CypherJS() {
 				
 				try {
 					xhr.open("POST", url, true);
+					if(headers) {
+						for(var key in headers) {
+							xhr.setRequestHeader(key, headers[key]);
+						}
+					}
 					if(payload.constructor == Object) {
 						xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 						xhr.send(JSON.stringify(payload));
@@ -3636,6 +3665,7 @@ function CypherJS() {
 			var requestType = "GET";
 			var payload = null;
 			var withHeaders = false;
+			var httpHeaders = null;
 			var fieldTerminator = ",";
 			var from = null;
 			var csvData = null;
@@ -3684,6 +3714,9 @@ function CypherJS() {
 			};
 			this.headers = function() {
 				withHeaders = true;
+			};
+			this.setHTTPHeaders = function(httpHeaders) {
+				this.httpHeaders = httpHeaders;
 			};
 			this.setFieldTerminator = function(_fieldTerminator) {
 				if(_fieldTerminator.length > 1 || _fieldTerminator.length == 0) {
@@ -3914,14 +3947,16 @@ function CypherJS() {
 							http.get(
 								me.from(),
 								handleResponse,
-								handleError
+								handleError,
+								me.httpHeaders ? me.httpHeaders.value(false) : null
 							);
 						} else if(me.getRequestType() == "POST") {
 							http.post(
 								me.from(),
 								me.getPayload(),
 								handleResponse,
-								handleError
+								handleError,
+								me.httpHeaders ? me.httpHeaders.value(false) : null
 							);
 						}
 					} catch(e) {
@@ -3985,7 +4020,11 @@ function CypherJS() {
 						get(ix) == ")" ||
 						get(ix) == "," ||
 						get(ix) == "" ||
-						get(ix) == "}";
+						get(ix) == "}" ||
+						get(ix) == "\t" ||
+						get(ix) == "\n" ||
+						get(ix) == "\r" ||
+						(get(ix) == "/" && get(ix+1) == "/");
 				};
 				for(;;) {
 					if(trieNode[get(i)]) {
@@ -4024,7 +4063,7 @@ function CypherJS() {
 			KeyWord.f.CSV = new KeyWord("CSV", function(e) { e.csv(); });
 			KeyWord.f.JSON = new KeyWord("JSON", function(e) { e.json(); });
 			KeyWord.f.TEXT = new KeyWord("TEXT", function(e) { e.text(); });
-			KeyWord.f.HEADERS = new KeyWord("HEADERS", function(e) { e.headers(); });
+			KeyWord.f.HEADERS = new KeyWord("HEADERS", function(e) { ; });
 			KeyWord.f.FROM = new KeyWord("FROM", function(e) { ; });
 			KeyWord.f.POST = new KeyWord("POST", function(e) { e.post(); });
 			KeyWord.f.AS = new KeyWord("AS", function(e) { ; });
@@ -4301,7 +4340,14 @@ function CypherJS() {
 			
 			_Function.f.lower = new _Function("lower", 1, 1, function() { return this.p[0].value().toLowerCase(); });
 			_Function.f.upper = new _Function("upper", 1, 1, function() { return this.p[0].value().toUpperCase(); });
-			
+			_Function.f.replace = new _Function("replace", 3, 3, function() {
+				var s = this.p[0].value();
+				if(s.replace) {
+					return s.replace(new RegExp(this.p[1].value(), "g"), this.p[2].value());
+				} else {
+					return s;
+				}
+			});			
 			_Function.f.toint = new _Function("toint", 1, 1, function() {
 				return parseInt(this.p[0].value());
 			});
@@ -4728,6 +4774,7 @@ function CypherJS() {
 							if(!headers()) {
 								throw exception("Expected HEADERS-keyword.");
 							}
+							engine.statement().context().headers();
 						}
 						ignoreWhiteSpaceAndComments();
 						if(from()) {
@@ -4747,8 +4794,19 @@ function CypherJS() {
 						} else {
 							throw exception("Expected FROM-keyword.");
 						}
+						ignoreWhiteSpaceAndComments();
+						var headersParsed = false;
+						if(headers()) {
+							parseHeaders();
+							headersParsed = true;
+						}
+						ignoreWhiteSpaceAndComments();
 						if(post()) {
 							parsePost();
+						}
+						ignoreWhiteSpaceAndComments();
+						if(!headersParsed && headers()) {
+							parseHeaders();
 						}
 						ignoreWhiteSpaceAndComments();
 						if(!parseLoadAlias()) {
@@ -4768,6 +4826,14 @@ function CypherJS() {
 			var parsePost = function() {
 				parseExpression();
 				engine.expression();
+			};
+			var parseHeaders = function() {
+				var array = parseAssociativeArray();
+				if(array) {
+					engine.statement().context().setHTTPHeaders(array);
+				} else {
+					throw exception("Expected associative array.");
+				}
 			};
 			var parseFieldTerminator = function() {
 				ignoreWhiteSpaceAndComments();
@@ -5620,6 +5686,8 @@ function CypherJS() {
 					quoteFunction = singleQuote;
 				} else if(doubleQuote()) {
 					quoteFunction = doubleQuote;
+				} else if(backTickQuote()) {
+					quoteFunction = backTickQuote;
 				} else {
 					return false;
 				}
@@ -5645,6 +5713,8 @@ function CypherJS() {
 					quoteFunction = singleQuote;
 				} else if(doubleQuote()) {
 					quoteFunction = doubleQuote;
+				} else if(backTickQuote()) {
+					quoteFunction = backTickQuote;
 				} else {
 					position--;
 					return false;
@@ -6900,10 +6970,6 @@ function CypherJS() {
 	};
 	this.post = function() {
 		statement.context().post();
-		return this;
-	};
-	this.headers = function() {
-		statement.context().headers();
 		return this;
 	};
 	this._with = function() {
