@@ -1,3 +1,5 @@
+// This script uses the OpenAI completion API to extract who talked to who about which food from a text and creates a graph of the results, then visualizes the graph.
+// To try this script, replace add your OpenAI API key and organization ID below, then run the script by pasting at https://niclasko.github.io/CypherJS/ and press enter.
 with
     'REPLACE_WITH_YOUR_OPENAI_API_KEY' as OPENAI_API_KEY, // Create under https://platform.openai.com/organization/api-keys
     'REPLACE_WITH_YOUR_OPENAI_ORG_ID' as OPENAI_ORG_ID // Find under https://platform.openai.com/settings/organization/general
