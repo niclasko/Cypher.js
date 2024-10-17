@@ -3939,7 +3939,12 @@ function CypherJS() {
 					}
 				};
 				var handleError = function(statusText) { // Error
-					throw me.type() + ": " + statusText;
+					var error = "Error loading data from " + from + ": " + statusText;
+					try {
+						self.onerror(error);
+					} catch(e) {
+						throw error;
+					}
 				};
 				if(from.constructor == String) {
 					try {
