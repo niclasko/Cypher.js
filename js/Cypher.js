@@ -2225,12 +2225,19 @@ function CypherJS() {
 						resp.on('end', function() {
 							me.responseText = data;
 							me.response = data;
-								
 							me.readyState = me.DONE;
-							me.status = 200;
-
-							me.onreadystatechange();
+							if(resp.statusCode >= 200 && resp.statusCode < 300) {
+								me.status = 200;
+								me.onreadystatechange();
+								me.onload();
+							} else {
+								me.status = resp.statusCode;
+								me.onreadystatechange();
+								me.onload();
+							}
 						});
+
+						resp
 
 					};
 
@@ -2239,25 +2246,31 @@ function CypherJS() {
 						me.status = 0;
 						me.onreadystatechange();
 					};
-
-					var parsedUrl = new urlLib.URL(this.url);
-					var options = {
-						hostname: parsedUrl.hostname,
-						port: (parsedUrl.port ? parsedUrl.port : (ssl_url ? 443 : 80)),
-					};
-					if(this.headers) {
-						options["headers"] = this.headers;
-					}
-					if(me.method == "GET") {
-						http.get(options, processResponse).on("error", handleError);
-						this.onload(this);
-					} else if(me.method == "POST") {
-						http.post(options, payload, processResponse).on("error", handleError);
-						this.onload(this);
-					}
 					
+					try {
+						var parsedUrl = new urlLib.URL(this.url);
+						var options = {
+							hostname: parsedUrl.hostname,
+							port: (parsedUrl.port ? parsedUrl.port : (ssl_url ? 443 : 80)),
+							path: parsedUrl.pathname + parsedUrl.search,
+							method: this.method,
+						};
+						if(this.headers) {
+							options["headers"] = this.headers;
+						}
+						var request = http.request(
+							options,
+							processResponse
+						);
+						request.on("error", handleError);
+						if (payload) {
+							request.write(payload);
+						}
+						request.end();
+					} catch(e) {
+						handleError(e);
+					}
 				}
-			
 			});
 		}
 
@@ -2302,12 +2315,13 @@ function CypherJS() {
 							xhr.setRequestHeader(key, headers[key]);
 						}
 					}
-					if(payload.constructor == Object) {
+					var data = payload;
+					if(data.constructor == Object) {
 						xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-						xhr.send(JSON.stringify(payload));
-					} else {
-						xhr.send(payload);
+						data = JSON.stringify(data);
 					}
+					xhr.setRequestHeader("Content-Length", TextEncoder().encode(data).length);
+					xhr.send(data);
 				} catch(e) {
 					errorCallback(e);
 				}
@@ -3665,7 +3679,6 @@ function CypherJS() {
 			var requestType = "GET";
 			var payload = null;
 			var withHeaders = false;
-			var httpHeaders = null;
 			var fieldTerminator = ",";
 			var from = null;
 			var csvData = null;
@@ -3780,6 +3793,10 @@ function CypherJS() {
 			
 			this.variables = function() {
 				return statement.variables();
+			};
+
+			this.type = function() {
+				return this.constructor.name;
 			};
 			
 			var parseCSV = function(_fieldSeparator, nextOperation) {
@@ -4699,7 +4716,7 @@ function CypherJS() {
 			var token = '';
 			var inQuotes = false;
 			
-			var forbiddenCharsList = '(): {}"\',.\n+-/*^[]=<>!';
+			var forbiddenCharsList = '(): {}"\',.\n\r\t+-/*^[]=<>!';
 			var forbiddenChars = {};
 
 			// Used to flag whether a parsed element is optional
@@ -7055,14 +7072,6 @@ try {
 } catch(e) {
 	isStandaloneJSEngine = false;
 }
-
-/*try {
-	if(load) {
-		isStandaloneJSEngine = true;
-	}
-} catch(e) {
-	isStandaloneJSEngine = false;
-}*/
 
 /*
 * Create new Cypher instance

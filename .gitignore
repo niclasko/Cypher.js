@@ -1,5 +1,6 @@
 cypher/
 data/
+node_modules/
 build.ps1
 run.ps1
 *.env
