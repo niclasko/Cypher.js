@@ -30,15 +30,14 @@ function query(statement, callback) {
 
 let args = process.argv.slice(2);  // Get the arguments
 
-args[0] = "C:\\code\\fastml\\sources\\dev\\coachPilot\\coachpilot-app\\cypher\\analyze_people_notes.cql"
-
-if(args.length >= 1) {
+if(args.length == 1) {
     const _input = args[0];
     let statement = '';
-    if(args.length == 1 && fs.existsSync(_input)) {
+    if(fs.existsSync(_input)) {
         statement = fs.readFileSync(_input, 'utf8');        
     } else {
-        statement = args.join(' ');
+        console.error('File not found: ' + _input);
+        exit();
     }
     query(statement, function(error, results) {
         if (error) {

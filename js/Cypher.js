@@ -2320,7 +2320,7 @@ function CypherJS() {
 						xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 						data = JSON.stringify(data);
 					}
-					xhr.setRequestHeader("Content-Length", TextEncoder().encode(data).length);
+					xhr.setRequestHeader("Content-Length", (new TextEncoder()).encode(data).length);
 					xhr.send(data);
 				} catch(e) {
 					errorCallback(e);
