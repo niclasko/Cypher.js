@@ -1,15 +1,12 @@
 {
-  "name": "cypher.js",
-  "version": "1.0.0",
+  "name": "cypherdotjs",
+  "version": "1.0.3",
   "description": "Cypher graph database for Javascript",
   "main": "index.js",
   "files": [
     "index.js",
-    "../../js/Cypher.min.js"
+    "js/Cypher.min.js"
   ],
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/niclasko/Cypher.js.git"
@@ -21,6 +18,6 @@
   },
   "homepage": "https://github.com/niclasko/Cypher.js#readme",
   "bin": {
-    "cypher": "./index.js"
+    "cypher": "index.js"
   }
 }

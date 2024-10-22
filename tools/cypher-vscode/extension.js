@@ -1,5 +1,5 @@
 const vscode = require('vscode');
-const Cypher = require("./Cypher.min.js").Cypher;
+const Cypher = require("cypherdotjs");
 
 function activate(context) {
     console.log('Congratulations, your extension "cypher-vscode" is now active!');

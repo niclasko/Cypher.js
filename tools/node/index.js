@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 
-const Cypher = require("../../js/Cypher.min.js").Cypher;
+const Cypher = require("./js/Cypher.min.js");
 const { exit } = require("process");
+
+// Immediately exit if the script is not run directly from the command line
+if (require.main !== module) {
+    // Export Cypher class so it can be used as a module
+    module.exports = Cypher;
+    exit();  // Exit the script immediately if not run directly
+}
+
 const readline = require('readline');
 const fs = require('fs');
 
@@ -30,11 +38,11 @@ function query(statement, callback) {
 
 let args = process.argv.slice(2);  // Get the arguments
 
-if(args.length == 1) {
+if (args.length == 1) {
     const _input = args[0];
     let statement = '';
-    if(fs.existsSync(_input)) {
-        statement = fs.readFileSync(_input, 'utf8');        
+    if (fs.existsSync(_input)) {
+        statement = fs.readFileSync(_input, 'utf8');
     } else {
         console.error('File not found: ' + _input);
         exit();

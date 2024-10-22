@@ -7284,9 +7284,7 @@ if(Cypher_context_is_worker) {
 }
 
 try {
-	module.exports = {
-		Cypher: Cypher
-	};
+	module.exports = Cypher;
 } catch (e) {
 	;
 }
