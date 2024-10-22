@@ -113,6 +113,7 @@ function getWebviewContent(results) {
                 border: 1px solid #f0f0f0;
                 border-radius: 0 5px 5px 5px;
                 background-color: #fff;
+                color: black;
             }
             .tab-content.active {
                 display: block;
@@ -127,6 +128,7 @@ function getWebviewContent(results) {
             th, td {
                 padding: 10px;
                 text-align: left;
+                color: black;
             }
             svg {
                 width: 100%;
@@ -175,49 +177,52 @@ function getWebviewContent(results) {
             const nodes = ${JSON.stringify(results.graph?.nodes || [])};
             const tooltip = document.getElementById('tooltip');
 
+            // Detect multiple links between the same nodes
+            const linkCounts = {};
+            links.forEach(link => {
+                const key = \`\${link.source}->\${link.target}\`;
+                if (linkCounts[key]) {
+                    linkCounts[key]++;
+                } else {
+                    linkCounts[key] = 1;
+                }
+                link.duplicate = linkCounts[key];
+            });
+
             const svg = d3.select("svg"),
-                  width = svg.node().getBoundingClientRect().width,
-                  height = svg.node().getBoundingClientRect().height,
-                  g = svg.append("g");
+                width = svg.node().getBoundingClientRect().width,
+                height = svg.node().getBoundingClientRect().height,
+                g = svg.append("g");
 
-            const simulation = d3.forceSimulation(nodes)
-                .force("link", d3.forceLink(links).id(d => d.id).distance(200))
-                .force("charge", d3.forceManyBody().strength(-400))
-                .force("center", d3.forceCenter(width / 2, height / 2));
-
-            // Allow dragging the entire graph
+            // Enable zoom and pan
             svg.call(d3.zoom()
                 .extent([[0, 0], [width, height]])
-                .scaleExtent([0.5, 5])
+                .scaleExtent([0.1, 10])
                 .on("zoom", ({ transform }) => g.attr("transform", transform)))
-                .on("mousedown.zoom", null)
-                .on("mousemove.zoom", null)
-                .on("mouseup.zoom", null);
+                .on("dblclick.zoom", null); // Optional: disable double-click zoom
 
-            // Helper to make multiple edges curved
-            const curve = d3.line().curve(d3.curveBasis);
+            const simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(links).id(d => d.id).distance(150))
+                .force("charge", d3.forceManyBody().strength(-400))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collide", d3.forceCollide(50));
 
+            // Define the link group
             const linkGroup = g.append("g")
                 .attr("class", "links");
 
+            // Create curved links
             const link = linkGroup.selectAll("path")
                 .data(links)
                 .enter().append("path")
                 .attr("stroke", "#999")
                 .attr("stroke-width", 2)
-                .attr("fill", "none");
-
-            const linkText = g.append("g")
-                .attr("class", "link-labels")
-                .selectAll("text")
-                .data(links)
-                .enter().append("text")
-                .attr("dy", -5)
-                .text(d => d.type)
-                .attr("fill", "#555")
+                .attr("fill", "none")
                 .on("mouseover", function(event, d) {
+                    // Show type and properties on hover
+                    const linkInfo = \`\${d.type} (\${JSON.stringify(d.properties, null, 2)})\`;
                     tooltip.style.visibility = 'visible';
-                    tooltip.textContent = JSON.stringify(d.properties, null, 2);
+                    tooltip.textContent = linkInfo;
                 })
                 .on("mousemove", function(event) {
                     tooltip.style.top = (event.pageY - 10) + "px";
@@ -227,6 +232,7 @@ function getWebviewContent(results) {
                     tooltip.style.visibility = 'hidden';
                 });
 
+            // Create nodes
             const node = g.append("g")
                 .attr("class", "nodes")
                 .selectAll("circle")
@@ -240,6 +246,7 @@ function getWebviewContent(results) {
                     .on("end", dragended))
                 .on("dblclick", unfixNode);
 
+            // Add labels to nodes
             const nodeLabels = g.append("g")
                 .attr("class", "node-labels")
                 .selectAll("text")
@@ -251,17 +258,29 @@ function getWebviewContent(results) {
                 .attr("fill", "#333");
 
             simulation.on("tick", () => {
-                link.attr("d", (d) => \`M\${d.source.x},\${d.source.y} L\${d.target.x},\${d.target.y}\`);
+                link.attr("d", d => {
+                    const sourceX = d.source.x;
+                    const sourceY = d.source.y;
+                    const targetX = d.target.x;
+                    const targetY = d.target.y;
 
-                linkText
-                    .attr("x", d => (d.source.x + d.target.x) / 2)
-                    .attr("y", d => (d.source.y + d.target.y) / 2)
-                    .attr("transform", d => {
-                        const dx = d.target.x - d.source.x;
-                        const dy = d.target.y - d.source.y;
-                        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-                        return \`rotate(\${angle}, \${(d.source.x + d.target.x) / 2}, \${(d.source.y + d.target.y) / 2})\`;
-                    });
+                    // Calculate the offset for multiple links
+                    const dx = targetX - sourceX;
+                    const dy = targetY - sourceY;
+                    const dr = Math.sqrt(dx * dx + dy * dy);
+                    const curvature = 0.5; // Adjust curvature as needed
+
+                    // Adjust curvature based on the duplicate count
+                    const multiple = d.duplicate;
+                    const offset = (multiple % 2 === 0 ? multiple / 2 : -(Math.floor(multiple / 2) + 1)) * 30;
+
+                    // Calculate the angle perpendicular to the line
+                    const angle = Math.atan2(dy, dx);
+                    const offsetX = -offset * Math.sin(angle);
+                    const offsetY = offset * Math.cos(angle);
+
+                    return \`M\${sourceX},\${sourceY} Q\${(sourceX + targetX) / 2 + offsetX},\${(sourceY + targetY) / 2 + offsetY} \${targetX},\${targetY}\`;
+                });
 
                 node
                     .attr("cx", d => d.x)
