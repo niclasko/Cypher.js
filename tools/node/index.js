@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const Cypher = require("../../js/Cypher.js").Cypher;
+const Cypher = require("../../js/Cypher.min.js").Cypher;
 const { exit } = require("process");
 const readline = require('readline');
 const fs = require('fs');
