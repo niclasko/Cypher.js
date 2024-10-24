@@ -2001,6 +2001,71 @@ function CypherJS() {
 			};
 		};
 
+		function Predicate() {
+			var me = this;
+			var predicateFunctionName = null;
+			var _variable = null;
+			var list = null;
+			var where = null;
+			this.setPredicateFunctionName = function(_predicateFunctionName) {
+				predicateFunctionName = _predicateFunctionName;
+			};
+			this.variable = function(_variableName) {
+				_variable = new Variable(null, _variableName);
+			};
+			this.list = function(_list) {
+				list = _list;
+			};
+			this.where = function(_where) {
+				where = _where;
+				if("setLocalVariable" in where && _variable) {
+					where.setLocalVariable(_variable.getObjectKey(), _variable);
+				}
+			};
+			this.get = function() {
+				return this.value();
+			};
+			this.next = function() {
+				return false;
+			};
+			this.hasNext = function() {
+				return true;
+			};
+			this.reset = function() {
+				;
+			};
+			this.getData = function() {
+				return me;
+			};
+			this.value = function() {
+				var _list = list.value();
+				var trues = 0;
+				for(var i=0; i<_list.length; i++) {
+					_variable.setOverriddenValue(_list[i]);
+					if(where.value()) {
+						trues++;
+					}
+				}
+				if(predicateFunctionName == "all") {
+					return trues == _list.length;
+				} else if(predicateFunctionName == "any") {
+					return trues > 0;
+				} else if(predicateFunctionName == "sum") {
+					return trues;
+				}
+				return false;
+			};
+			this.type = function() {
+				return me.constructor.name;
+			};
+			this.groupByKey = function() {
+				return me.get();
+			};
+			this.groupByValue = function() {
+				return me.get();
+			};
+		};
+
 		function FString() {
 			var parts = [];
 			this.string = function(_string) {
@@ -2324,6 +2389,24 @@ function CypherJS() {
 			var context = _context;
 			var variableReferences = _variableReferences;
 			var childrenHasVariableReferences = false;
+			var localVariables = {};
+			var me = this;
+
+			const setExpressionInTree = function(node) {
+				if(!node) {
+					return;
+				}
+				if("setExpression" in node) {
+					node.setExpression(me);
+				}
+				if("lhs" in node) {
+					setExpressionInTree(node.lhs);
+				}
+				if("rhs" in node) {
+					setExpressionInTree(node.rhs);
+				}
+			};
+			setExpressionInTree(root);
 			
 			if(aggregationFunctions) {
 				context.addReduceExpression(this);
@@ -2430,6 +2513,14 @@ function CypherJS() {
 
 			this.mappable = function() {
 				return root.mappable();
+			};
+
+			this.setLocalVariable = function(key, value) {
+				localVariables[key] = value;
+			};
+
+			this.getLocalVariable = function(key) {
+				return localVariables[key];
 			};
 
 		};
@@ -4084,6 +4175,7 @@ function CypherJS() {
 			KeyWord.f.ELSE = new KeyWord("ELSE", function(e) { ; });
 			KeyWord.f.END = new KeyWord("END", function(e) { ; });
 			KeyWord.f.SHORTESTPATH = new KeyWord("SHORTESTPATH", function(e) { ; });
+			KeyWord.f.IN = new KeyWord("IN", function(e) { ; });
 			KeyWord.trie = Trie.buildTrie(KeyWord.f);
 			KeyWord.isKeyWord = function(statementText, position) {
 				return Trie.isF(KeyWord, KeyWord.trie, statementText, position);
@@ -4688,6 +4780,25 @@ function CypherJS() {
 			AggregateFunction.latestParsed = null;
 			AggregateFunction.isAggregateFunction = function(expression, position) {
 				return Trie.isF(AggregateFunction, AggregateFunction.trie, expression, position);
+			};
+		};
+
+		PredicateFunctionLookup: {
+			function PredicateFunctionLookup(_displayValue) {
+				var displayValue = _displayValue;
+				this.displayValue = function() {
+					return displayValue;
+				};
+			}
+			PredicateFunctionLookup.f = {};
+			PredicateFunctionLookup.f.sum = new PredicateFunctionLookup("sum");
+			PredicateFunctionLookup.f.all = new PredicateFunctionLookup("all");
+			PredicateFunctionLookup.f.any = new PredicateFunctionLookup("any");
+		
+			PredicateFunctionLookup.trie = Trie.buildTrie(PredicateFunctionLookup.f);
+			PredicateFunctionLookup.latestParsed = null;
+			PredicateFunctionLookup.isPredicateFunction = function(expression, position) {
+				return Trie.isF(PredicateFunctionLookup, PredicateFunctionLookup.trie, expression, position);
 			};
 		};
 		
@@ -5351,6 +5462,9 @@ function CypherJS() {
 						throw exception("Expected closing parentheses.");
 					}
 					addClosingParentheses();
+				} else if( (parsedConstruct = parsePredicateFunction()) ) {
+					element = addPredicateFunction(parsedConstruct);
+					allowLookup = false;
 				} else if(_function()) {
 					element = parseFunction();
 				} else if(aggregateFunction()) {
@@ -5559,6 +5673,44 @@ function CypherJS() {
 			};
 			var parseFunctionParameter = function() {
 				addExpression(parseExpressionLayer());
+			};
+			var parsePredicateFunction = function() {
+				var initialPosition = position;
+				if((charsToAccumulate = PredicateFunctionLookup.isPredicateFunction(statementText, position)) > 0) {
+					position += charsToAccumulate;
+					if(openingParentheses(false, true)) {
+						var predicate = new Predicate();
+						predicate.setPredicateFunctionName(PredicateFunctionLookup.latestParsed.displayValue());
+						ignoreWhiteSpaceAndComments();
+						if(parseVariable(true)) {
+							var variableKey = getAndResetToken();
+							predicate.variable(variableKey);
+							ignoreWhiteSpaceAndComments();
+							if(_in()) {
+								ignoreWhiteSpaceAndComments();
+								var list = parseList();
+								if(!list) {
+									throw exception("Expected list.");
+								}
+								predicate.list(list);
+								ignoreWhiteSpaceAndComments();
+								if(!where()) {
+									throw exception("Expected WHERE-keyword.");
+								}
+								ignoreWhiteSpaceAndComments();
+								var expression = parseExpressionLayer();
+								predicate.where(expression);
+								ignoreWhiteSpaceAndComments();
+								if(!closingParentheses()) {
+									throw exception("Expected closing parentheses.");
+								}
+								return predicate;
+							}
+						};
+					}
+				}
+				position = initialPosition;
+				return false;
 			};
 			var parseVariable = function(dontAddToEngine) {
 				var addToEngine = !dontAddToEngine;
@@ -5823,24 +5975,35 @@ function CypherJS() {
 				function VariableReference(engine, variableKey) {
 					var _engine = engine;
 					var _variableKey = variableKey;
+					var me = this;
+
+					var getVariable = function() {
+						if(me.parent && me.parent.getLocalVariable) {
+							var value = me.parent.getLocalVariable(_variableKey);
+							if(value) {
+								return value;
+							}
+						}
+						return _engine.statement().getVariable(_variableKey);
+					};
 					this.getObject = function() {
-						return _engine.statement().getVariable(_variableKey).getObject();
+						return getVariable().getObject();
 					};
 					this.value = function(asKey) {
-						return _engine.statement().getVariable(_variableKey).value(asKey);
+						return getVariable().value(asKey);
 					};
 					this.getKey = function() {
 						return _variableKey;
 					};
 					this.type = function() {
-						return _engine.statement().getVariable(_variableKey).getObject().type();
+						return getVariable().getObject().type();
 					};
 					this.groupByKey = function() {
-						var o = _engine.statement().getVariable(_variableKey).getObject();
+						var o = getVariable().getObject();
 						return (o.groupByKey && o.groupByKey()) || o;
 					};
 					this.groupByValue = function() {
-						var o = _engine.statement().getVariable(_variableKey).getObject();
+						var o = getVariable().getObject();
 						return (o.groupByValue && o.groupByValue()) || o;
 					};
 				};
@@ -5853,6 +6016,9 @@ function CypherJS() {
 					var me = this;
 					var elementValueContext = this;
 					var parsedParameterCount = 0;
+					var expression = undefined;
+
+					element.parent = me;
 
 					this.element = function() {
 						return element;
@@ -5920,6 +6086,15 @@ function CypherJS() {
 							}
 						}
 						return true;
+					};
+					this.setExpression = function(_expression) {
+						expression = _expression;
+					};
+					this.getLocalVariable = function(key) {
+						if(expression) {
+							return expression.getLocalVariable(key);
+						}
+						return undefined;
 					};
 				};
 				
@@ -6099,6 +6274,9 @@ function CypherJS() {
 				};
 				var addCase = function(_case) {
 					return addOutput({isAtom: true, v: new ExpressionElement(_case)}).v;
+				};
+				var addPredicateFunction = function(predicateFunction) {
+					return addOutput({isAtom: true, v: new ExpressionElement(predicateFunction)}).v;
 				};
 				var addFString = function(fstring) {
 					return addOutput({isAtom: true, v: new ExpressionElement(fstring)}).v;
@@ -6302,6 +6480,9 @@ function CypherJS() {
 			};
 			var end = function() {
 				return keyword(KeyWord.f.END);
+			};
+			var _in = function() {
+				return keyword(KeyWord.f.IN);
 			};
 			var operator = function() {
 				var charsToAccumulate = 0;
