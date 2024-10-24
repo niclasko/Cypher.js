@@ -1,3 +1,5 @@
+const path = require('path');
+
 /*
 * Cypher.js graph query engine for Javascript. https://github.com/niclasko/Cypher.js.
 * Copyright (c) 2024 "Niclas Kjall-Ohlsson"
@@ -2312,6 +2314,7 @@ function CypherJS() {
 					var options = {
 						hostname: parsedUrl.hostname,
 						port: (parsedUrl.port ? parsedUrl.port : (ssl_url ? 443 : 80)),
+						path: parsedUrl.pathname + parsedUrl.search,
 					};
 					if(this.headers) {
 						options["headers"] = this.headers;
@@ -2371,8 +2374,10 @@ function CypherJS() {
 						}
 					}
 					if(payload.constructor == Object) {
+						var encoded = new TextEncoder().encode(JSON.stringify(payload));
 						xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-						xhr.send(JSON.stringify(payload));
+						xhr.setRequestHeader("Content-Length", encoded.length);
+						xhr.send(encoded);
 					} else {
 						xhr.send(payload);
 					}
@@ -2394,22 +2399,6 @@ function CypherJS() {
 			var childrenHasVariableReferences = false;
 			var localVariables = {};
 			var me = this;
-
-			const setExpressionInTree = function(node) {
-				if(!node) {
-					return;
-				}
-				if("setExpression" in node) {
-					node.setExpression(me);
-				}
-				if("lhs" in node) {
-					setExpressionInTree(node.lhs);
-				}
-				if("rhs" in node) {
-					setExpressionInTree(node.rhs);
-				}
-			};
-			setExpressionInTree(root);
 			
 			if(aggregationFunctions) {
 				context.addReduceExpression(this);
@@ -6168,10 +6157,18 @@ function CypherJS() {
 				
 				var output = [];
 				var operators = [];
+
+				var expressionElements = [];
 				
+				var recordExpressionElement = function(element) {
+					expressionElements.push(element);
+					return element;
+				};
+
 				var reset = function() {
 					output = [];
 					operators = [];
+					expressionElements = [];
 				};
 				
 				var lastOutput = function() {
@@ -6187,6 +6184,7 @@ function CypherJS() {
 					layers.push({
 						output: output,
 						operators: operators,
+						expressionElements: expressionElements,
 						rollbackPosition: rollbackPosition
 					});
 					reset();
@@ -6195,6 +6193,7 @@ function CypherJS() {
 					var layer = layers.pop();
 					output = layer.output;
 					operators = layer.operators;
+					expressionElements = layer.expressionElements;
 					rollbackPosition = layer.rollbackPosition;
 				};
 
@@ -6221,7 +6220,7 @@ function CypherJS() {
 					}
 					element.lookups.push({
 						function: _Function.f.object_lookup,
-						index: new ExpressionElement(new Constant(key))
+						index: recordExpressionElement(new ExpressionElement(new Constant(key)))
 					});
 				};
 				var addListLookup = function(element, expression) {
@@ -6230,14 +6229,17 @@ function CypherJS() {
 					}
 					element.lookups.push({
 						function: _Function.f.array_lookup,
-						index: new ExpressionElement(expression)
+						index: recordExpressionElement(new ExpressionElement(expression))
 					});
 				};
 				var noLookup = function() {
 					;
 				};
 				var addConstant = function(value) {
-					return addOutput({isAtom: true, v: new ExpressionElement(new Constant(value))}).v;
+					return addOutput({
+						isAtom: true,
+						v: recordExpressionElement(new ExpressionElement(new Constant(value)))
+					}).v;
 				};
 				var addAllVariables = function() {
 					var vars = engine.statement().context().variables();
@@ -6250,16 +6252,21 @@ function CypherJS() {
 					return addOutput({
 						isAtom: true,
 						isVariable: true,
-						v: new ExpressionElement(
-							new VariableReference(
-								engine,
-								key
+						v: recordExpressionElement(
+							new ExpressionElement(
+								new VariableReference(
+									engine,
+									key
+								)
 							)
 						)
 					}).v;
 				};
 				var addPattern = function(pattern) {
-					return addOutput({isAtom: true, v: new ExpressionElement(pattern)}).v;
+					return addOutput({
+						isAtom: true,
+						v: recordExpressionElement(new ExpressionElement(pattern))
+					}).v;
 				};
 				var removeLastPattern = function() {
 					if(lastOutput().v.element().constructor == Pattern) {
@@ -6267,37 +6274,63 @@ function CypherJS() {
 					}
 				};
 				var addExpression = function(expression) {
-					return addOutput({isAtom: true, v: new ExpressionElement(expression)}).v;
+					return addOutput({
+						isAtom: true,
+						v: recordExpressionElement(new ExpressionElement(expression))
+					}).v;
 				};
 				var addList = function(list) {
-					return addOutput({isAtom: true, v: new ExpressionElement(list)}).v;
+					return addOutput({
+						isAtom: true,
+						v: recordExpressionElement(new ExpressionElement(list))
+					}).v;
 				};
 				var addAssociativeArray = function(associativeArray) {
-					return addOutput({isAtom: true, v: new ExpressionElement(associativeArray)}).v;
+					return addOutput({
+						isAtom: true,
+						v: recordExpressionElement(new ExpressionElement(associativeArray))
+					}).v;
 				};
 				var addCase = function(_case) {
-					return addOutput({isAtom: true, v: new ExpressionElement(_case)}).v;
+					return addOutput({
+						isAtom: true,
+						v: recordExpressionElement(new ExpressionElement(_case))
+					}).v;
 				};
 				var addPredicateFunction = function(predicateFunction) {
-					return addOutput({isAtom: true, v: new ExpressionElement(predicateFunction)}).v;
+					return addOutput({
+						isAtom: true,
+						v: recordExpressionElement(new ExpressionElement(predicateFunction))
+					}).v;
 				};
 				var addFString = function(fstring) {
-					return addOutput({isAtom: true, v: new ExpressionElement(fstring)}).v;
+					return addOutput({
+						isAtom: true,
+						v: recordExpressionElement(new ExpressionElement(fstring))
+					}).v;
 				};
 				var addFunction = function(__function) {
-					return addToOperators({isFunction: true,
-						v: new ExpressionElement(__function)}).v;
+					return addToOperators({
+						isFunction: true,
+						v: recordExpressionElement(new ExpressionElement(__function))
+					}).v;
 				};
 				var addAggregateFunction = function(_aggregateFunction) {
-					return addToOperators({isAggregateFunction: true, isFunction: true,
-						v: new AggregateExpressionElement(_aggregateFunction)}).v;
+					return addToOperators({
+						isAggregateFunction: true,
+						isFunction: true,
+						v: recordExpressionElement(new AggregateExpressionElement(_aggregateFunction))
+					}).v;
 				};
 				var addOperator = function(operator) {
 					while(operators.length > 0 && ((operators.slice(-1)[0].isOperator || operators.slice(-1)[0].isFunction) &&
 							precedenceConditionIsMet(operator, operators.slice(-1)[0].v.element()))) {
 						output.push(operators.pop());
 					}
-					return addToOperators({isOperator: true, v: new ExpressionElement(operator)}).v;
+					return addToOperators({
+						isOperator: true,
+						v: recordExpressionElement(new ExpressionElement(operator))
+					}).v;
 				};
 				var addOpeningParentheses = function() {
 					addToOperators({leftParentheses: true});
@@ -6356,11 +6389,10 @@ function CypherJS() {
 						expressionTreeNodes.push(currentOutput);
 
 					}
-					reset();
 					if(expressionTreeNodes.length == 0) {
 						return null;
 					}
-					return new Expression(
+					var expression = new Expression(
 						expressionTreeNodes.pop().v,
 						"expr",
 						aggregationFunctions,
@@ -6368,6 +6400,11 @@ function CypherJS() {
 						variableReferences,
 						non_deterministic
 					);
+					for(var i=0; i<expressionElements.length; i++) {
+						expressionElements[i].setExpression(expression);
+					}
+					reset();
+					return expression;
 				};
 				this.getExpression = function() {
 					return finish();
