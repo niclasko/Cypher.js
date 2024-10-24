@@ -1,5 +1,3 @@
-const path = require('path');
-
 /*
 * Cypher.js graph query engine for Javascript. https://github.com/niclasko/Cypher.js.
 * Copyright (c) 2024 "Niclas Kjall-Ohlsson"
