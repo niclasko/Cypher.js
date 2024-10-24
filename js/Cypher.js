@@ -2039,6 +2039,9 @@ function CypherJS() {
 			};
 			this.value = function() {
 				var _list = list.value();
+				if(_list.constructor != Array) {
+					throw "Predicate list must be an array.";
+				}
 				var trues = 0;
 				for(var i=0; i<_list.length; i++) {
 					_variable.setOverriddenValue(_list[i]);
@@ -5688,11 +5691,11 @@ function CypherJS() {
 							ignoreWhiteSpaceAndComments();
 							if(_in()) {
 								ignoreWhiteSpaceAndComments();
-								var list = parseList();
-								if(!list) {
+								var listExpression = parseExpressionLayer();
+								if(!listExpression) {
 									throw exception("Expected list.");
 								}
-								predicate.list(list);
+								predicate.list(listExpression);
 								ignoreWhiteSpaceAndComments();
 								if(!where()) {
 									throw exception("Expected WHERE-keyword.");
