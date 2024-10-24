@@ -3,7 +3,9 @@ var Cypher = require("./Cypher.js").Cypher;
 var engine = new Cypher();
 
 var statement = `
-    return sum(v in [1,2,3] where v > 1) as sum, 1 as one
+    unwind range(1,4) as e
+    with 1 as t
+    return t
 `;
 
 engine.execute(
