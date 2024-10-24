@@ -3394,7 +3394,7 @@ function CypherJS() {
 			var previousOperation;
 			var nextOperation;
 			
-			var isIntermediary = false, hasReferredVariables = false;
+			var isIntermediary = false, hasReferredVariables = false, hasConstants = false;
 			
 			var me = this;
 			
@@ -3522,13 +3522,14 @@ function CypherJS() {
 				}
 				me.setReturnValueNextAction(returnValue);
 				hasReferredVariables = hasReferredVariables || expression.hasReferredVariables();
+				hasConstants = !hasReferredVariables;
 				return returnValue;
 			};
 			this.setIsIntermediary = function() {
 				isIntermediary = true;
 			};
 			this.conveyorBeltEnd = function() {
-				return !hasReferredVariables && isIntermediary && !reduceExpressions;
+				return !hasReferredVariables && isIntermediary && !reduceExpressions && !hasConstants;
 			};
 			var lastIndex = function() {
 				return returnValues.length-1;
