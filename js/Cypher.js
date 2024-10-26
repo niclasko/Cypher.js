@@ -2319,18 +2319,17 @@ function CypherJS() {
 						hostname: parsedUrl.hostname,
 						port: (parsedUrl.port ? parsedUrl.port : (ssl_url ? 443 : 80)),
 						path: parsedUrl.pathname + parsedUrl.search,
+						method: this.method
 					};
 					if(this.headers) {
 						options["headers"] = this.headers;
 					}
-					if(me.method == "GET") {
-						http.get(options, processResponse).on("error", handleError);
-						this.onload(this);
-					} else if(me.method == "POST") {
-						http.post(options, payload, processResponse).on("error", handleError);
-						this.onload(this);
+					var request = http.request(options, processResponse);
+					request.on("error", handleError);
+					if(payload) {
+						request.write(payload);
 					}
-					
+					request.end();
 				}
 			
 			});
