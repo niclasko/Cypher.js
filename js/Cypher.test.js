@@ -1,4 +1,4 @@
-var Cypher = require("./Cypher.js").Cypher;
+var Cypher = require("./Cypher.js");
 
 var cypherTest = new Cypher();
 
