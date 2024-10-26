@@ -2295,9 +2295,15 @@ function CypherJS() {
 							me.response = data;
 								
 							me.readyState = me.DONE;
-							me.status = 200;
-
-							me.onreadystatechange();
+							if(resp.statusCode >= 200 && resp.statusCode < 300) {
+								me.status = 200;
+								me.onreadystatechange();
+								me.onload();
+							} else {
+								me.status = resp.statusCode;
+								me.onreadystatechange();
+								me.onload();
+							}
 						});
 
 					};
@@ -2313,18 +2319,17 @@ function CypherJS() {
 						hostname: parsedUrl.hostname,
 						port: (parsedUrl.port ? parsedUrl.port : (ssl_url ? 443 : 80)),
 						path: parsedUrl.pathname + parsedUrl.search,
+						method: this.method
 					};
 					if(this.headers) {
 						options["headers"] = this.headers;
 					}
-					if(me.method == "GET") {
-						http.get(options, processResponse).on("error", handleError);
-						this.onload(this);
-					} else if(me.method == "POST") {
-						http.post(options, payload, processResponse).on("error", handleError);
-						this.onload(this);
+					var request = http.request(options, processResponse);
+					request.on("error", handleError);
+					if(payload) {
+						request.write(payload);
 					}
-					
+					request.end();
 				}
 			
 			});
@@ -3797,8 +3802,11 @@ function CypherJS() {
 			this.headers = function() {
 				withHeaders = true;
 			};
-			this.setHTTPHeaders = function(httpHeaders) {
-				this.httpHeaders = httpHeaders;
+			this.setHTTPHeaders = function(_httpHeaders) {
+				httpHeaders = _httpHeaders;
+			};
+			this.getHTTPHeaders = function() {
+				return httpHeaders;
 			};
 			this.setFieldTerminator = function(_fieldTerminator) {
 				if(_fieldTerminator.length > 1 || _fieldTerminator.length == 0) {
@@ -4035,7 +4043,7 @@ function CypherJS() {
 								me.from(),
 								handleResponse,
 								handleError,
-								me.httpHeaders ? me.httpHeaders.value(false) : null
+								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
 							);
 						} else if(me.getRequestType() == "POST") {
 							http.post(
@@ -4043,7 +4051,7 @@ function CypherJS() {
 								me.getPayload(),
 								handleResponse,
 								handleError,
-								me.httpHeaders ? me.httpHeaders.value(false) : null
+								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
 							);
 						}
 					} catch(e) {
@@ -4801,7 +4809,7 @@ function CypherJS() {
 			var token = '';
 			var inQuotes = false;
 			
-			var forbiddenCharsList = '(): {}"\',.\n+-/*^[]=<>!';
+			var forbiddenCharsList = '(): {}"\',.\n\r\t+-/*^[]=<>!';
 			var forbiddenChars = {};
 
 			// Used to flag whether a parsed element is optional
@@ -7276,14 +7284,6 @@ try {
 	isStandaloneJSEngine = false;
 }
 
-/*try {
-	if(load) {
-		isStandaloneJSEngine = true;
-	}
-} catch(e) {
-	isStandaloneJSEngine = false;
-}*/
-
 /*
 * Create new Cypher instance
 *	options: {
@@ -7495,9 +7495,7 @@ if(Cypher_context_is_worker) {
 }
 
 try {
-	module.exports = {
-		Cypher: Cypher
-	};
+	module.exports = Cypher;
 } catch (e) {
 	;
 }
