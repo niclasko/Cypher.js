@@ -1,0 +1,26 @@
+{
+  "name": "cypherdotjs",
+  "version": "1.0.6",
+  "description": "Cypher graph database for Javascript",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "js/Cypher.min.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/niclasko/Cypher.js.git"
+  },
+  "author": "Niclas Kjäll-Ohlsson",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/niclasko/Cypher.js/issues"
+  },
+  "homepage": "https://github.com/niclasko/Cypher.js#readme",
+  "bin": {
+    "cypher": "index.js"
+  },
+  "dependencies": {
+    "cypherdotjs": "^1.0.4"
+  }
+}
