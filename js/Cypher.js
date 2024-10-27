@@ -1789,7 +1789,10 @@ function CypherJS() {
 					}
 				}
 				return true;
-			}
+			};
+			this.type = function() {
+				return this.constructor.name;
+			};
 		};
 
 		function AssociativeArray() {
@@ -2173,6 +2176,9 @@ function CypherJS() {
 			this.name = function() {
 				return tableName;
 			};
+			this.type = function() {
+				return this.constructor.name;
+			};
 
 			init: {
 				db.addTable(me);
@@ -2213,6 +2219,9 @@ function CypherJS() {
 			};
 			this.name = function() {
 				return columnName;
+			};
+			this.type = function() {
+				return this.constructor.name;
 			};
 		}
 	};
@@ -2549,6 +2558,9 @@ function CypherJS() {
 			this.setOverriddenValue = function(_overriddenValue) {
 				overriddenValue = _overriddenValue;
 			};
+			this.type = function() {
+				return this.constructor.name;
+			};
 		};
 		function Statement(_engine) {
 			var engine = _engine;
@@ -2726,6 +2738,9 @@ function CypherJS() {
 			var expression = _expression;
 			this.evaluate = function() {
 				return expression.value() == true;
+			};
+			this.type = function() {
+				return this.constructor.name;
 			};
 		};
 		function Inserter(_db, _tableName) {
