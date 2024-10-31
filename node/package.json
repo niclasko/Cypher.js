@@ -1,6 +1,6 @@
 {
   "name": "cypherdotjs",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Cypher graph database for Javascript",
   "main": "index.js",
   "files": [
