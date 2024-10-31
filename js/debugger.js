@@ -9,13 +9,7 @@ var statement = `
         {type: 'user', message: 'I am feeling very stressed out.'}
     ] as message
     with message.type as type, collect(message) as messages
-    load text from 'http://localhost:8000/llm/query' post {
-        messages: [
-            {role: "user", content: "How are you?"}
-        ],
-        max_tokens: 50,
-        model: "gpt-4-0125"
-    } as dummy
+    load text from "https://raw.githubusercontent.com/niclasko/Cypher.js/refs/heads/master/js/debugger.js" as l
     return type, size(messages)
 `;
 

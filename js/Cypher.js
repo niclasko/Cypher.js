@@ -2345,58 +2345,64 @@ function CypherJS() {
 		}
 
 		function HTTP() {
-			var processResponse = function(xhr, successCallback, errorCallback) {
-				if(xhr.readyState == 4) {
-					if(xhr.status == 200) {
-						successCallback(xhr.responseText);
-					} else if(xhr.status != 200) {
-						errorCallback(xhr.status + ": " + xhr.responseText);
-					}
-				}
-			};
-			this.get = function(url, successCallback, errorCallback, headers) {
-				var xhr = XMLHttpRequestFactory();
-				xhr.onreadystatechange = function() {
-					processResponse(xhr, successCallback, errorCallback);
-				};
-				
-				try {
-					xhr.open("GET", url, true);
-					if(headers) {
-						for(var key in headers) {
-							xhr.setRequestHeader(key, headers[key]);
+			this.get = function(url, headers = {}) {
+				return new Promise((resolve, reject) => {
+					const xhr = XMLHttpRequestFactory();
+					xhr.onreadystatechange = function() {
+						if (xhr.readyState === 4) {
+							if (xhr.status >= 200 && xhr.status < 300) {
+								resolve(xhr.responseText); // resolve with the response data
+							} else {
+								reject(new Error(`Request failed with status ${xhr.status}`));
+							}
 						}
-					}
-					xhr.send();
-				} catch(e) {
-					errorCallback(e);
-				}
-			};
-			this.post = function(url, payload, successCallback, errorCallback, headers) {
-				var xhr = XMLHttpRequestFactory();
-				xhr.onreadystatechange = function() {
-					processResponse(xhr, successCallback, errorCallback);
-				};
-				
-				try {
-					xhr.open("POST", url, true);
-					if(headers) {
-						for(var key in headers) {
-							xhr.setRequestHeader(key, headers[key]);
+					};
+					try {
+						xhr.open("GET", url, true);
+						for (const key in headers) {
+							if (headers.hasOwnProperty(key)) {
+								xhr.setRequestHeader(key, headers[key]);
+							}
 						}
+						xhr.send();
+					} catch (e) {
+						reject(e); // reject the promise if there’s an error
 					}
-					if(payload.constructor == Object) {
-						var encoded = new TextEncoder().encode(JSON.stringify(payload));
-						xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-						xhr.setRequestHeader("Content-Length", encoded.length);
-						xhr.send(encoded);
-					} else {
-						xhr.send(payload);
-					}
-				} catch(e) {
-					errorCallback(e);
-				}
+				});
 			};
+			this.post = function(url, payload, headers = {}) {
+				return new Promise((resolve, reject) => {
+					const xhr = XMLHttpRequestFactory();
+					xhr.onreadystatechange = function() {
+						if (xhr.readyState === 4) {
+							if (xhr.status >= 200 && xhr.status < 300) {
+								resolve(xhr.responseText); // resolve with the response data
+							} else {
+								reject(new Error(`Request failed with status ${xhr.status}`));
+							}
+						}
+					};
+					try {
+						xhr.open("POST", url, true);
+						for (const key in headers) {
+							if (headers.hasOwnProperty(key)) {
+								xhr.setRequestHeader(key, headers[key]);
+							}
+						}
+			
+						if (payload && payload.constructor === Object) {
+							const encoded = new TextEncoder().encode(JSON.stringify(payload));
+							xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+							xhr.setRequestHeader("Content-Length", encoded.length);
+							xhr.send(encoded);
+						} else {
+							xhr.send(payload);
+						}
+					} catch (e) {
+						reject(e); // reject the promise if there’s an error
+					}
+				});
+			};			
 		};
 		var http = new HTTP();
 	};
@@ -3312,19 +3318,22 @@ function CypherJS() {
 			this.print = function() {
 				printTrie(trieRoot);
 			};
-			var printTrie = function(trieNode) {
-				var key;
-				for(key in trieNode.map) {
-					context.setNextMapValue(
-						trieNode.map[key].value
-					);
-					printTrie(trieNode.map[key]);
-					context.moveToPreviousMapValue();
-				}
-				if(!key) {
-					currentTrieNode = trieNode;
-					context.addAggregateOutputRecord();
-				}
+			var printTrie = async function(trieNode) {
+				return new Promise(async (resolve, reject) => {
+					var key;
+					for(key in trieNode.map) {
+						context.setNextMapValue(
+							trieNode.map[key].value
+						);
+						await printTrie(trieNode.map[key]);
+						context.moveToPreviousMapValue();
+					}
+					if(!key) {
+						currentTrieNode = trieNode;
+						await context.addAggregateOutputRecord();
+					}
+					resolve();
+				});
 			};
 		};
 		function ReturnValue(_expression, _statement, _parent, isHidden) {
@@ -3473,23 +3482,26 @@ function CypherJS() {
 			this.moveToPreviousMapValue = function() {
 				mapReturnValuesIterator--;
 			};
-			this.addAggregateOutputRecord = function() {
-				if(!whereConditionMet()) {
-					return;
-				}
-				if(this.doItCount() == 0 && this.hasMapKeys()) {
-					return;
-				}
-				if(limitReached()) {
-					return;
-				}
-				for(var i=0; i<returnValues.length; i++) {
-					returnValues[i].nextAction();
-				}
-				recordCount++;
-				if(nextOperation) {
-					nextOperation.doIt();
-				}
+			this.addAggregateOutputRecord = async function() {
+				return new Promise(async (resolve, reject) => {
+					if(!whereConditionMet()) {
+						return;
+					}
+					if(this.doItCount() == 0 && this.hasMapKeys()) {
+						return;
+					}
+					if(limitReached()) {
+						return;
+					}
+					for(var i=0; i<returnValues.length; i++) {
+						returnValues[i].nextAction();
+					}
+					recordCount++;
+					if(nextOperation) {
+						await nextOperation.doIt();
+					}
+					resolve();
+				});
 			};
 			this.setReturnValueNextAction = function(returnValue) {
 				returnValue.setNextAction(
@@ -3705,7 +3717,7 @@ function CypherJS() {
 					nextOperation.finish();
 				}
 			};
-			this.run = function() {
+			this.run = async function() {
 				this.doIt();
 				if(nextOperation) {
 					nextOperation.finish();
@@ -4008,84 +4020,97 @@ function CypherJS() {
 					nextOperation();
 				}
 			};
-			this.doIt = function() {
-				this.run();
+			this.doIt = async function() {
+				return new Promise(async (resolve, reject) => {
+					await this.run();
+					resolve();
+				});
 			};
 			this.finish = function() {
 				;
 			}
-			this.run = function() {
-				var me = this;
-				var from = me.from();
-				me.increaseRunCount();
-				var handleResponse = function(responseText) { // Success
-					var runId = me.getRunId();
-					if(me.loadType() == "CSV") {
-						csvData = responseText;
-						parseCSV(
-							me.fieldTerminator(),
-							function() {
-								nextOperation.doIt();
-							}
-						);
-					} else if(me.loadType() == "JSON") {
-						processJSON(
-							JSON.parse(responseText),
-							function() {
-								nextOperation.doIt();
-							}
-						);
-					} else if(me.loadType() == "TEXT") {
-						data = responseText;
-						nextOperation.doIt();
-					}
-					if(runId == me.runCount()) {
-						nextOperation.finish();
-					}
-				};
-				var handleError = function(statusText) { // Error
-					var error = "Error loading data from " + from + ": " + statusText;
-					try {
-						self.onerror(error);
-					} catch(e) {
-						throw error;
-					}
-				};
-				if(from.constructor == String) {
-					try {
-						if(me.getRequestType() == "GET") {
-							http.get(
-								me.from(),
-								handleResponse,
-								handleError,
-								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
-							);
-						} else if(me.getRequestType() == "POST") {
-							http.post(
-								me.from(),
-								me.getPayload(),
-								handleResponse,
-								handleError,
-								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
-							);
-						}
-					} catch(e) {
-						handleError(e);
-					}
-				} else if(from.constructor != String) {
-					if(me.loadType() == "JSON") {
+			this.run = async function() {
+				return new Promise(async (resolve, reject) => {
+					var me = this;
+					var from = me.from();
+					me.increaseRunCount();
+					var handleResponse = function(responseText) { // Success
 						var runId = me.getRunId();
-						processJSON(
-							from,
-							function() {
-								nextOperation.doIt();
-							}
-						);
+						if(me.loadType() == "CSV") {
+							csvData = responseText;
+							parseCSV(
+								me.fieldTerminator(),
+								function() {
+									nextOperation.doIt();
+								}
+							);
+						} else if(me.loadType() == "JSON") {
+							processJSON(
+								JSON.parse(responseText),
+								function() {
+									nextOperation.doIt();
+								}
+							);
+						} else if(me.loadType() == "TEXT") {
+							data = responseText;
+							nextOperation.doIt();
+						}
 						if(runId == me.runCount()) {
 							nextOperation.finish();
 						}
+						resolve();
+					};
+					var handleError = function(statusText) { // Error
+						var error = "Error loading data from " + from + ": " + statusText;
+						try {
+							self.onerror(error);
+						} catch(e) {
+							throw error;
+						}
+						resolve();
+					};
+					if(from.constructor == String) {
+						try {
+							if(me.getRequestType() == "GET") {
+								try {
+									const response = await http.get(
+										me.from(),
+										me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
+									);
+									handleResponse(response);
+								} catch (error) {
+									handleError(error);
+								}
+							} else if(me.getRequestType() == "POST") {
+								try {
+									const response = await http.post(
+										me.from(),
+										me.getPayload(),
+										me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
+									);
+									handleResponse(response);
+								} catch (error) {
+									handleError(error);
+								}
+							}
+						} catch(e) {
+							handleError(e);
+						}
+					} else if(from.constructor != String) {
+						if(me.loadType() == "JSON") {
+							var runId = me.getRunId();
+							processJSON(
+								from,
+								function() {
+									nextOperation.doIt();
+								}
+							);
+							if(runId == me.runCount()) {
+								nextOperation.finish();
+							}
+						}
 					}
-				}
+				});
 			};
 			this.type = function() {
 				return this.constructor.name;
@@ -7270,15 +7295,12 @@ function CypherJS() {
 	};
 	
 	this.run = function() {
-		
 		switch(statement.context().type()) {
 			case 'Match':
 			case 'With':
 				throw "A " + statement.context().type() + "-statement cannot conclude the query.";
 		}
-		
-		statement.operations()[0].run();
-		
+		statement.operations()[0].run();		
 	};
 	
 }
