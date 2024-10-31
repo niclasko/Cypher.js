@@ -2790,7 +2790,10 @@ function CypherJS() {
 					);
 				}
 				if(nextOperation) {
-					nextOperation.doIt();
+					const result = nextOperation.doIt();
+					if (result instanceof Promise) {
+						result.then();
+					}
 				}
 			};
 			this.finish = function() {
@@ -2973,7 +2976,10 @@ function CypherJS() {
 					setters[i].set();
 				}
 				if(nextOperation) {
-					nextOperation.doIt();
+					const result = nextOperation.doIt();
+					if (result instanceof Promise) {
+						result.then();
+					}
 				}
 			};
 			this.finish = function() {
@@ -3037,7 +3043,10 @@ function CypherJS() {
 					lastPattern().setNextAction(
 						function() {
 							if(!whereCondition || whereCondition.evaluate()) {
-								nextOperation.doIt();
+								const result = nextOperation.doIt();
+								if (result instanceof Promise) {
+									result.then();
+								}
 							}
 						}
 					);
@@ -3128,7 +3137,10 @@ function CypherJS() {
 					lastPattern().setNextAction(
 						function() {
 							if(!whereCondition || whereCondition.evaluate()) {
-								nextOperation.doIt();
+								const result = nextOperation.doIt();
+								if (result instanceof Promise) {
+									result.then();
+								}
 							}
 						}
 					);
@@ -3224,7 +3236,10 @@ function CypherJS() {
 					lastPattern().setNextAction(
 						function() {
 							if(!whereCondition || whereCondition.evaluate()) {
-								nextOperation.doIt();
+								const result = nextOperation.doIt();
+								if (result instanceof Promise) {
+									result.then();
+								}
 							}
 						}
 					);
@@ -3318,22 +3333,19 @@ function CypherJS() {
 			this.print = function() {
 				printTrie(trieRoot);
 			};
-			var printTrie = async function(trieNode) {
-				return new Promise(async (resolve, reject) => {
-					var key;
-					for(key in trieNode.map) {
-						context.setNextMapValue(
-							trieNode.map[key].value
-						);
-						await printTrie(trieNode.map[key]);
-						context.moveToPreviousMapValue();
-					}
-					if(!key) {
-						currentTrieNode = trieNode;
-						await context.addAggregateOutputRecord();
-					}
-					resolve();
-				});
+			var printTrie = function(trieNode) {
+				var key;
+				for(key in trieNode.map) {
+					context.setNextMapValue(
+						trieNode.map[key].value
+					);
+					printTrie(trieNode.map[key]);
+					context.moveToPreviousMapValue();
+				}
+				if(!key) {
+					currentTrieNode = trieNode;
+					context.addAggregateOutputRecord();
+				}
 			};
 		};
 		function ReturnValue(_expression, _statement, _parent, isHidden) {
@@ -3482,26 +3494,23 @@ function CypherJS() {
 			this.moveToPreviousMapValue = function() {
 				mapReturnValuesIterator--;
 			};
-			this.addAggregateOutputRecord = async function() {
-				return new Promise(async (resolve, reject) => {
-					if(!whereConditionMet()) {
-						return;
-					}
-					if(this.doItCount() == 0 && this.hasMapKeys()) {
-						return;
-					}
-					if(limitReached()) {
-						return;
-					}
-					for(var i=0; i<returnValues.length; i++) {
-						returnValues[i].nextAction();
-					}
-					recordCount++;
-					if(nextOperation) {
-						await nextOperation.doIt();
-					}
-					resolve();
-				});
+			this.addAggregateOutputRecord = function() {
+				if(!whereConditionMet()) {
+					return;
+				}
+				if(this.doItCount() == 0 && this.hasMapKeys()) {
+					return;
+				}
+				if(limitReached()) {
+					return;
+				}
+				for(var i=0; i<returnValues.length; i++) {
+					returnValues[i].nextAction();
+				}
+				recordCount++;
+				if(nextOperation) {
+					nextOperation.doIt();
+				}
 			};
 			this.setReturnValueNextAction = function(returnValue) {
 				returnValue.setNextAction(
@@ -3611,7 +3620,10 @@ function CypherJS() {
 					}
 					recordCount++;
 					if(nextOperation) {
-						nextOperation.doIt();
+						const result = nextOperation.doIt();
+						if (result instanceof Promise) {
+							result.then();
+						}
 					}
 				} else if(me.hasGroupBy()) {
 					// Map
@@ -3708,7 +3720,10 @@ function CypherJS() {
 						throw "Unwind expects list expression.";
 					}
 					for(index=0; index<collectionToUnwind.length; index++) {
-						nextOperation.doIt();
+						const result = nextOperation.doIt();
+						if (result instanceof Promise) {
+							result.then();
+						}
 					}
 				}
 			};
@@ -3717,7 +3732,7 @@ function CypherJS() {
 					nextOperation.finish();
 				}
 			};
-			this.run = async function() {
+			this.run = function() {
 				this.doIt();
 				if(nextOperation) {
 					nextOperation.finish();
@@ -3786,22 +3801,11 @@ function CypherJS() {
 			var data;
 			var previousOperation;
 			var nextOperation = null;
-
-			var runCount = 0;
-			var runIdFactory = 0;
+			var variables = [];
 
 			var HTTP_PROXY =
 				statement.engine().getDataDownloadProxy();
 
-			this.runCount = function() {
-				return runCount;
-			};
-			this.increaseRunCount = function() {
-				runCount++;
-			};
-			this.getRunId = function() {
-				return ++runIdFactory;
-			};
 			this.csv = function() {
 				loadType = "CSV";
 			};
@@ -3973,7 +3977,10 @@ function CypherJS() {
 						data = record;
 						record = {};
 						fieldNumber = 0;
-						nextOperation();
+						const result = nextOperation();
+						if (result instanceof Promise) {
+							result.then();
+						}
 					}
 				};
 	
@@ -4020,97 +4027,110 @@ function CypherJS() {
 					nextOperation();
 				}
 			};
-			this.doIt = async function() {
-				return new Promise(async (resolve, reject) => {
-					await this.run();
-					resolve();
-				});
+			this.doIt = function() {
+				return this.run();
 			};
 			this.finish = function() {
 				;
-			}
-			this.run = async function() {
-				return new Promise(async (resolve, reject) => {
-					var me = this;
-					var from = me.from();
-					me.increaseRunCount();
-					var handleResponse = function(responseText) { // Success
-						var runId = me.getRunId();
-						if(me.loadType() == "CSV") {
-							csvData = responseText;
-							parseCSV(
-								me.fieldTerminator(),
-								function() {
-									nextOperation.doIt();
-								}
-							);
-						} else if(me.loadType() == "JSON") {
-							processJSON(
-								JSON.parse(responseText),
-								function() {
-									nextOperation.doIt();
-								}
-							);
-						} else if(me.loadType() == "TEXT") {
-							data = responseText;
-							nextOperation.doIt();
-						}
-						if(runId == me.runCount()) {
-							nextOperation.finish();
-						}
-						resolve();
-					};
-					var handleError = function(statusText) { // Error
-						var error = "Error loading data from " + from + ": " + statusText;
-						try {
-							self.onerror(error);
-						} catch(e) {
-							throw error;
-						}
-						resolve();
-					};
-					if(from.constructor == String) {
-						try {
-							if(me.getRequestType() == "GET") {
-								try {
-									const response = await http.get(
-										me.from(),
-										me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
-									);
-									handleResponse(response);
-								} catch (error) {
-									handleError(error);
-								}
-							} else if(me.getRequestType() == "POST") {
-								try {
-									const response = await http.post(
-										me.from(),
-										me.getPayload(),
-										me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
-									);
-									handleResponse(response);
-								} catch (error) {
-									handleError(error);
-								}
+			};
+			this.stackVariables = function() {
+				return variables.push(
+					statement.variables().map(
+						(v) => v.value()
+					)
+				) - 1;
+			};
+			this.setVariables = function(index) {
+				var values = variables[index];
+				for(var i=0; i<values.length; i++) {
+					statement.variables()[i].setOverriddenValue(
+						values[i]
+					);
+				}
+			};
+			this.isLastVariablesIndex = function(index) {
+				return index == variables.length - 1;
+			};
+			this.resetVariables = function() {
+				variables = [];
+				for(var i=0; i<statement.variables().length; i++) {
+					statement.variables()[i].setOverriddenValue(null);
+				}
+			};
+			this.run = function() {
+				var me = this;
+				var from = me.from();
+				var variablesIndex = me.stackVariables();
+				var handleResponse = function(responseText) { // Success
+					if(me.loadType() == "CSV") {
+						csvData = responseText;
+						parseCSV(
+							me.fieldTerminator(),
+							function() {
+								me.setVariables(variablesIndex);
+								nextOperation.doIt();
 							}
+						);
+					} else if(me.loadType() == "JSON") {
+						processJSON(
+							JSON.parse(responseText),
+							function() {
+								me.setVariables(variablesIndex);
+								nextOperation.doIt();
+							}
+						);
+					} else if(me.loadType() == "TEXT") {
+						data = responseText;
+						me.setVariables(variablesIndex);
+						nextOperation.doIt();
+					}
+					if(me.isLastVariablesIndex(variablesIndex)) {
+						nextOperation.finish();
+						me.resetVariables();
+					}
+					if(!previousOperation) {
+						nextOperation.finish();
+					}
+				};
+				var handleError = function(statusText) { // Error
+					var error = "Error loading data from " + from + ": " + statusText;
+					try {
+						self.onerror(error);
+					} catch(e) {
+						throw error;
+					}
+				};
+				if(from.constructor == String) {
+					if(me.getRequestType() == "GET") {
+						try {
+							http.get(
+								from,
+								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
+							).then(handleResponse).catch(handleError);
 						} catch(e) {
 							handleError(e);
 						}
-					} else if(from.constructor != String) {
-						if(me.loadType() == "JSON") {
-							var runId = me.getRunId();
-							processJSON(
-								from,
-								function() {
-									nextOperation.doIt();
-								}
-							);
-							if(runId == me.runCount()) {
-								nextOperation.finish();
-							}
+					} else if(me.getRequestType() == "POST") {
+						try {
+							http.post(
+								me.from(),
+								me.getPayload(),
+								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
+							).then(handleResponse).catch(handleError);
+						} catch(e) {
+							handleError(e);
 						}
 					}
-				});
+				} else if(from.constructor != String) {
+					if(me.loadType() == "JSON") {
+						processJSON(
+							from,
+							function() {
+								nextOperation.doIt();
+							}
+						);
+					}
+				}
 			};
 			this.type = function() {
 				return this.constructor.name;
@@ -7300,7 +7320,7 @@ function CypherJS() {
 			case 'With':
 				throw "A " + statement.context().type() + "-statement cannot conclude the query.";
 		}
-		statement.operations()[0].run();		
+		statement.operations()[0].run();
 	};
 	
 }
