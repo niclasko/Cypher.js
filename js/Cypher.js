@@ -2345,63 +2345,59 @@ function CypherJS() {
 		}
 
 		function HTTP() {
-			this.get = function(url, headers = {}) {
-				return new Promise((resolve, reject) => {
-					const xhr = XMLHttpRequestFactory();
-					xhr.onreadystatechange = function() {
-						if (xhr.readyState === 4) {
-							if (xhr.status >= 200 && xhr.status < 300) {
-								resolve(xhr.responseText); // resolve with the response data
-							} else {
-								reject(new Error(`Request failed with status ${xhr.status}`));
-							}
-						}
-					};
-					try {
-						xhr.open("GET", url, true);
-						for (const key in headers) {
-							if (headers.hasOwnProperty(key)) {
-								xhr.setRequestHeader(key, headers[key]);
-							}
-						}
-						xhr.send();
-					} catch (e) {
-						reject(e); // reject the promise if there’s an error
-					}
-				});
-			};
-			this.post = function(url, payload, headers = {}) {
-				return new Promise((resolve, reject) => {
-					const xhr = XMLHttpRequestFactory();
-					xhr.onreadystatechange = function() {
-						if (xhr.readyState === 4) {
-							if (xhr.status >= 200 && xhr.status < 300) {
-								resolve(xhr.responseText); // resolve with the response data
-							} else {
-								reject(new Error(`Request failed with status ${xhr.status}`));
-							}
-						}
-					};
-					try {
-						xhr.open("POST", url, true);
-						for (const key in headers) {
-							if (headers.hasOwnProperty(key)) {
-								xhr.setRequestHeader(key, headers[key]);
-							}
-						}
-			
-						if (payload && payload.constructor === Object) {
-							const encoded = new TextEncoder().encode(JSON.stringify(payload));
-							xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-							xhr.setRequestHeader("Content-Length", encoded.length);
-							xhr.send(encoded);
+			this.get = function(url, headers = {}, successCallback, errorCallback) {
+				const xhr = XMLHttpRequestFactory();
+				xhr.onreadystatechange = function() {
+					if (xhr.readyState === 4) {
+						if (xhr.status >= 200 && xhr.status < 300) {
+							successCallback(xhr.responseText); // resolve with the response data
 						} else {
-							xhr.send(payload);
+							errorCallback(new Error(`Request failed with status ${xhr.status}`));
 						}
-					} catch (e) {
-						reject(e); // reject the promise if there’s an error
 					}
-				});
+				};
+				try {
+					xhr.open("GET", url, true);
+					for (const key in headers) {
+						if (headers.hasOwnProperty(key)) {
+							xhr.setRequestHeader(key, headers[key]);
+						}
+					}
+					xhr.send();
+				} catch (e) {
+					errorCallback(e);
+				}
+			};
+			this.post = function(url, payload, headers = {}, successCallback, errorCallback) {
+				const xhr = XMLHttpRequestFactory();
+				xhr.onreadystatechange = function() {
+					if (xhr.readyState === 4) {
+						if (xhr.status >= 200 && xhr.status < 300) {
+							successCallback(xhr.responseText);
+						} else {
+							errorCallback(new Error(`Request failed with status ${xhr.status}`));
+						}
+					}
+				};
+				try {
+					xhr.open("POST", url, true);
+					for (const key in headers) {
+						if (headers.hasOwnProperty(key)) {
+							xhr.setRequestHeader(key, headers[key]);
+						}
+					}
+		
+					if (payload && payload.constructor === Object) {
+						const encoded = new TextEncoder().encode(JSON.stringify(payload));
+						xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+						xhr.setRequestHeader("Content-Length", encoded.length);
+						xhr.send(encoded);
+					} else {
+						xhr.send(payload);
+					}
+				} catch (e) {
+					errorCallback(e);
+				}
 			};			
 		};
 		var http = new HTTP();
@@ -3801,7 +3797,7 @@ function CypherJS() {
 			var data;
 			var previousOperation;
 			var nextOperation = null;
-			var variables = [];
+			var intermediateVariables = new Map();
 
 			var HTTP_PROXY =
 				statement.engine().getDataDownloadProxy();
@@ -4033,41 +4029,48 @@ function CypherJS() {
 			this.finish = function() {
 				;
 			};
-			this.stackVariables = function() {
-				return variables.push(
-					statement.variables().map(
-						(v) => v.value()
-					)
-				) - 1;
+			this.saveVariables = function() {
+				var variables = Object.fromEntries(
+					statement.variables().map((v) => [v.getObjectKey(), v.value()])
+				);				  
+				var key = intermediateVariables.size;
+				intermediateVariables.set(key, variables);
+				return key;
 			};
-			this.setVariables = function(index) {
-				var values = variables[index];
-				for(var i=0; i<values.length; i++) {
-					statement.variables()[i].setOverriddenValue(
-						values[i]
-					);
+			this.setVariables = function(key) {
+				var variables = intermediateVariables.get(key);
+				for (let variableKey in variables) {
+					let variable = statement.getVariable(variableKey);
+					let variableValue = variables[variableKey];
+					if(variable) {
+						variable.setOverriddenValue(variableValue);
+					}
 				}
 			};
-			this.isLastVariablesIndex = function(index) {
-				return index == variables.length - 1;
-			};
-			this.resetVariables = function() {
-				variables = [];
-				for(var i=0; i<statement.variables().length; i++) {
-					statement.variables()[i].setOverriddenValue(null);
+			this.removeVariables = function(key) {
+				var variables = intermediateVariables.get(key);
+				for (let variableKey in variables) {
+					let variable = statement.getVariable(variableKey);
+					if(variable) {
+						variable.setOverriddenValue(null);
+					}
 				}
+				intermediateVariables.delete(key);
+			};
+			this.isVariablesEmpty = function() {
+				return intermediateVariables.size == 0;
 			};
 			this.run = function() {
 				var me = this;
 				var from = me.from();
-				var variablesIndex = me.stackVariables();
+				var variablesKey = me.saveVariables();
 				var handleResponse = function(responseText) { // Success
+					me.setVariables(variablesKey);
 					if(me.loadType() == "CSV") {
 						csvData = responseText;
 						parseCSV(
 							me.fieldTerminator(),
 							function() {
-								me.setVariables(variablesIndex);
 								nextOperation.doIt();
 							}
 						);
@@ -4075,20 +4078,15 @@ function CypherJS() {
 						processJSON(
 							JSON.parse(responseText),
 							function() {
-								me.setVariables(variablesIndex);
 								nextOperation.doIt();
 							}
 						);
 					} else if(me.loadType() == "TEXT") {
 						data = responseText;
-						me.setVariables(variablesIndex);
 						nextOperation.doIt();
 					}
-					if(me.isLastVariablesIndex(variablesIndex)) {
-						nextOperation.finish();
-						me.resetVariables();
-					}
-					if(!previousOperation) {
+					me.removeVariables(variablesKey);
+					if(me.isVariablesEmpty()) {
 						nextOperation.finish();
 					}
 				};
@@ -4105,8 +4103,10 @@ function CypherJS() {
 						try {
 							http.get(
 								from,
-								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
-							).then(handleResponse).catch(handleError);
+								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null,
+								handleResponse,
+								handleError
+							);
 						} catch(e) {
 							handleError(e);
 						}
@@ -4115,8 +4115,10 @@ function CypherJS() {
 							http.post(
 								me.from(),
 								me.getPayload(),
-								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
-							).then(handleResponse).catch(handleError);
+								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null,
+								handleResponse,
+								handleError
+							);
 						} catch(e) {
 							handleError(e);
 						}
@@ -4425,7 +4427,7 @@ function CypherJS() {
 			_Function.f.size = new _Function("size", 1, 1, function() { return this.p[0].value().length; });
 
 			_Function.f.object_lookup = new _Function("object_lookup", 2, 2, function() {
-				if(this.p[0].value().getProperty) {
+				if(this.p[0].value() && this.p[0].value().getProperty) {
 					return this.p[0].value().getProperty(this.p[1].value());
 				}
 				try {
