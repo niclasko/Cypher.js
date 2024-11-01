@@ -1,3 +1,4 @@
+const { stat } = require("fs");
 var Cypher = require("./Cypher.js");
 
 var cypherTest = new Cypher();
@@ -255,25 +256,28 @@ var statements = [
     return is, size(is)"
 ];
 
-function run(i, to) {
-    if (!to) {
-        to = statements.length;
+async function run() {
+    for(i=0; i<statements.length; i++) {
+        await new Promise(async (resolve, reject) => {
+            var statement = statements[i];
+            
+            await cypherTest.execute(
+                statement,
+                function(results) {
+                    console.log();
+                    console.log(statement);
+                    console.log(JSON.stringify(results.graph));
+                    console.log(JSON.stringify(results));
+                    resolve();
+                },
+                function(error) {
+                    console.log(error);
+                    resolve();
+                }
+            );
+        });
     }
-    if(i == to) {
-        return;
-    }
-    console.log(statements[i]);
-    cypherTest.execute(
-        statements[i],
-        function(results) {
-            console.log(JSON.stringify(results.graph));
-            console.log(JSON.stringify(results));
-            run(i+1, to);
-        },
-        function(error) {
-            console.log(error);
-        }
-    );
+    console.log();
 }
 
-run(0);
+run();

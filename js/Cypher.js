@@ -2345,58 +2345,60 @@ function CypherJS() {
 		}
 
 		function HTTP() {
-			var processResponse = function(xhr, successCallback, errorCallback) {
-				if(xhr.readyState == 4) {
-					if(xhr.status == 200) {
-						successCallback(xhr.responseText);
-					} else if(xhr.status != 200) {
-						errorCallback(xhr.status + ": " + xhr.responseText);
-					}
-				}
-			};
-			this.get = function(url, successCallback, errorCallback, headers) {
-				var xhr = XMLHttpRequestFactory();
+			this.get = function(url, headers = {}, successCallback, errorCallback) {
+				const xhr = XMLHttpRequestFactory();
 				xhr.onreadystatechange = function() {
-					processResponse(xhr, successCallback, errorCallback);
+					if (xhr.readyState === 4) {
+						if (xhr.status >= 200 && xhr.status < 300) {
+							successCallback(xhr.responseText); // resolve with the response data
+						} else {
+							errorCallback(new Error(`Request failed with status ${xhr.status}`));
+						}
+					}
 				};
-				
 				try {
 					xhr.open("GET", url, true);
-					if(headers) {
-						for(var key in headers) {
+					for (const key in headers) {
+						if (headers.hasOwnProperty(key)) {
 							xhr.setRequestHeader(key, headers[key]);
 						}
 					}
 					xhr.send();
-				} catch(e) {
+				} catch (e) {
 					errorCallback(e);
 				}
 			};
-			this.post = function(url, payload, successCallback, errorCallback, headers) {
-				var xhr = XMLHttpRequestFactory();
+			this.post = function(url, payload, headers = {}, successCallback, errorCallback) {
+				const xhr = XMLHttpRequestFactory();
 				xhr.onreadystatechange = function() {
-					processResponse(xhr, successCallback, errorCallback);
+					if (xhr.readyState === 4) {
+						if (xhr.status >= 200 && xhr.status < 300) {
+							successCallback(xhr.responseText);
+						} else {
+							errorCallback(new Error(`Request failed with status ${xhr.status}`));
+						}
+					}
 				};
-				
 				try {
 					xhr.open("POST", url, true);
-					if(headers) {
-						for(var key in headers) {
+					for (const key in headers) {
+						if (headers.hasOwnProperty(key)) {
 							xhr.setRequestHeader(key, headers[key]);
 						}
 					}
-					if(payload.constructor == Object) {
-						var encoded = new TextEncoder().encode(JSON.stringify(payload));
+		
+					if (payload && payload.constructor === Object) {
+						const encoded = new TextEncoder().encode(JSON.stringify(payload));
 						xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 						xhr.setRequestHeader("Content-Length", encoded.length);
 						xhr.send(encoded);
 					} else {
 						xhr.send(payload);
 					}
-				} catch(e) {
+				} catch (e) {
 					errorCallback(e);
 				}
-			};
+			};			
 		};
 		var http = new HTTP();
 	};
@@ -2784,7 +2786,10 @@ function CypherJS() {
 					);
 				}
 				if(nextOperation) {
-					nextOperation.doIt();
+					const result = nextOperation.doIt();
+					if (result instanceof Promise) {
+						result.then();
+					}
 				}
 			};
 			this.finish = function() {
@@ -2967,7 +2972,10 @@ function CypherJS() {
 					setters[i].set();
 				}
 				if(nextOperation) {
-					nextOperation.doIt();
+					const result = nextOperation.doIt();
+					if (result instanceof Promise) {
+						result.then();
+					}
 				}
 			};
 			this.finish = function() {
@@ -3031,7 +3039,10 @@ function CypherJS() {
 					lastPattern().setNextAction(
 						function() {
 							if(!whereCondition || whereCondition.evaluate()) {
-								nextOperation.doIt();
+								const result = nextOperation.doIt();
+								if (result instanceof Promise) {
+									result.then();
+								}
 							}
 						}
 					);
@@ -3122,7 +3133,10 @@ function CypherJS() {
 					lastPattern().setNextAction(
 						function() {
 							if(!whereCondition || whereCondition.evaluate()) {
-								nextOperation.doIt();
+								const result = nextOperation.doIt();
+								if (result instanceof Promise) {
+									result.then();
+								}
 							}
 						}
 					);
@@ -3218,7 +3232,10 @@ function CypherJS() {
 					lastPattern().setNextAction(
 						function() {
 							if(!whereCondition || whereCondition.evaluate()) {
-								nextOperation.doIt();
+								const result = nextOperation.doIt();
+								if (result instanceof Promise) {
+									result.then();
+								}
 							}
 						}
 					);
@@ -3599,7 +3616,10 @@ function CypherJS() {
 					}
 					recordCount++;
 					if(nextOperation) {
-						nextOperation.doIt();
+						const result = nextOperation.doIt();
+						if (result instanceof Promise) {
+							result.then();
+						}
 					}
 				} else if(me.hasGroupBy()) {
 					// Map
@@ -3696,7 +3716,10 @@ function CypherJS() {
 						throw "Unwind expects list expression.";
 					}
 					for(index=0; index<collectionToUnwind.length; index++) {
-						nextOperation.doIt();
+						const result = nextOperation.doIt();
+						if (result instanceof Promise) {
+							result.then();
+						}
 					}
 				}
 			};
@@ -3774,22 +3797,11 @@ function CypherJS() {
 			var data;
 			var previousOperation;
 			var nextOperation = null;
-
-			var runCount = 0;
-			var runIdFactory = 0;
+			var intermediateVariables = new Map();
 
 			var HTTP_PROXY =
 				statement.engine().getDataDownloadProxy();
 
-			this.runCount = function() {
-				return runCount;
-			};
-			this.increaseRunCount = function() {
-				runCount++;
-			};
-			this.getRunId = function() {
-				return ++runIdFactory;
-			};
 			this.csv = function() {
 				loadType = "CSV";
 			};
@@ -3961,7 +3973,10 @@ function CypherJS() {
 						data = record;
 						record = {};
 						fieldNumber = 0;
-						nextOperation();
+						const result = nextOperation();
+						if (result instanceof Promise) {
+							result.then();
+						}
 					}
 				};
 	
@@ -4009,17 +4024,48 @@ function CypherJS() {
 				}
 			};
 			this.doIt = function() {
-				this.run();
+				return this.run();
 			};
 			this.finish = function() {
 				;
-			}
+			};
+			this.saveVariables = function() {
+				var variables = Object.fromEntries(
+					statement.variables().map((v) => [v.getObjectKey(), v.value()])
+				);				  
+				var key = intermediateVariables.size;
+				intermediateVariables.set(key, variables);
+				return key;
+			};
+			this.setVariables = function(key) {
+				var variables = intermediateVariables.get(key);
+				for (let variableKey in variables) {
+					let variable = statement.getVariable(variableKey);
+					let variableValue = variables[variableKey];
+					if(variable) {
+						variable.setOverriddenValue(variableValue);
+					}
+				}
+			};
+			this.removeVariables = function(key) {
+				var variables = intermediateVariables.get(key);
+				for (let variableKey in variables) {
+					let variable = statement.getVariable(variableKey);
+					if(variable) {
+						variable.setOverriddenValue(null);
+					}
+				}
+				intermediateVariables.delete(key);
+			};
+			this.isVariablesEmpty = function() {
+				return intermediateVariables.size == 0;
+			};
 			this.run = function() {
 				var me = this;
 				var from = me.from();
-				me.increaseRunCount();
+				var variablesKey = me.saveVariables();
 				var handleResponse = function(responseText) { // Success
-					var runId = me.getRunId();
+					me.setVariables(variablesKey);
 					if(me.loadType() == "CSV") {
 						csvData = responseText;
 						parseCSV(
@@ -4039,7 +4085,8 @@ function CypherJS() {
 						data = responseText;
 						nextOperation.doIt();
 					}
-					if(runId == me.runCount()) {
+					me.removeVariables(variablesKey);
+					if(me.isVariablesEmpty()) {
 						nextOperation.finish();
 					}
 				};
@@ -4052,38 +4099,38 @@ function CypherJS() {
 					}
 				};
 				if(from.constructor == String) {
-					try {
-						if(me.getRequestType() == "GET") {
+					if(me.getRequestType() == "GET") {
+						try {
 							http.get(
-								me.from(),
+								from,
+								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null,
 								handleResponse,
-								handleError,
-								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
+								handleError
 							);
-						} else if(me.getRequestType() == "POST") {
+						} catch(e) {
+							handleError(e);
+						}
+					} else if(me.getRequestType() == "POST") {
+						try {
 							http.post(
 								me.from(),
 								me.getPayload(),
+								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null,
 								handleResponse,
-								handleError,
-								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null
+								handleError
 							);
+						} catch(e) {
+							handleError(e);
 						}
-					} catch(e) {
-						handleError(e);
 					}
 				} else if(from.constructor != String) {
 					if(me.loadType() == "JSON") {
-						var runId = me.getRunId();
 						processJSON(
 							from,
 							function() {
 								nextOperation.doIt();
 							}
 						);
-						if(runId == me.runCount()) {
-							nextOperation.finish();
-						}
 					}
 				}
 			};
@@ -4380,7 +4427,7 @@ function CypherJS() {
 			_Function.f.size = new _Function("size", 1, 1, function() { return this.p[0].value().length; });
 
 			_Function.f.object_lookup = new _Function("object_lookup", 2, 2, function() {
-				if(this.p[0].value().getProperty) {
+				if(this.p[0].value() && this.p[0].value().getProperty) {
 					return this.p[0].value().getProperty(this.p[1].value());
 				}
 				try {
@@ -7270,15 +7317,12 @@ function CypherJS() {
 	};
 	
 	this.run = function() {
-		
 		switch(statement.context().type()) {
 			case 'Match':
 			case 'With':
 				throw "A " + statement.context().type() + "-statement cannot conclude the query.";
 		}
-		
 		statement.operations()[0].run();
-		
 	};
 	
 }
