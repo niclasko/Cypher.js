@@ -1,3 +1,5 @@
+const { run } = require('node:test');
+
 /*
 * Cypher.js graph query engine for Javascript. https://github.com/niclasko/Cypher.js.
 * Copyright (c) 2024 "Niclas Kjall-Ohlsson"
@@ -405,7 +407,7 @@ function CypherJS() {
 				return matcher.matchingSet();
 			};
 
-			this.createNode = function(node) {
+			this.createNode = async function(node) {
 
 				var nodeInstance;
 
@@ -440,9 +442,9 @@ function CypherJS() {
 				}
 
 				if(node.nextNode()) {
-					node.nextNode().create();
+					await node.nextNode().create();
 				} else if(!node.nextNode()) {
-					node.nextAction();
+					await node.nextAction();
 				}
 
 			};
@@ -575,21 +577,21 @@ function CypherJS() {
 				}
 			};
 
-			var conveyorBelt = function(node, merge, _pathExpansionDepth) {
+			var conveyorBelt = async function(node, merge, _pathExpansionDepth) {
 				if(node.nextNode()) {
 					if(node.getPattern().usedAsCondition()) {
-						return node.nextNode().convey(merge, _pathExpansionDepth);
+						return await node.nextNode().convey(merge, _pathExpansionDepth);
 					} else {
-						node.nextNode().convey(merge, _pathExpansionDepth);
+						await node.nextNode().convey(merge, _pathExpansionDepth);
 					}
 				} else if(!node.nextNode()) {
 					// Last node in pattern
 					// So push everything matched in pattern
 					// to the next operation on the conveyor belt
 					if(node.getPattern().usedAsCondition()) {
-						return node.nextAction();
+						return await node.nextAction();
 					} else {
-						node.nextAction();
+						await node.nextAction();
 					}
 				}
 			};
@@ -615,7 +617,7 @@ function CypherJS() {
 				return nodeIdsForConveyorBelt;
 			};
 
-			var getMatchingNodeIds = function(node, merge) {
+			var getMatchingNodeIds = async function(node, merge) {
 				var nodeIdsForConveyorBelt = [];
 				
 				if(!node.isExpanded()) {
@@ -657,7 +659,7 @@ function CypherJS() {
 						if(node.getPattern().usedAsCondition()) {
 							return false;
 						} else {
-							node.getPattern().create();
+							await node.getPattern().create();
 							return;
 						}
 					}
@@ -668,37 +670,37 @@ function CypherJS() {
 				return nodeIdsForConveyorBelt;
 			};
 
-			var processNodeWithoutRelationships = function(node, nodeId, merge, pathExpansionDepth) {
+			var processNodeWithoutRelationships = async function(node, nodeId, merge, pathExpansionDepth) {
 				if(!node.incomingRelationship() && !node.outgoingRelationship()) {
 					node.addMatchedNode(nodes[nodeId]);
 					if(node.getPattern().usedAsCondition()) {
-						return conveyorBelt(node, merge, pathExpansionDepth);
+						return await conveyorBelt(node, merge, pathExpansionDepth);
 					} else {
-						conveyorBelt(node, merge, pathExpansionDepth);
+						await conveyorBelt(node, merge, pathExpansionDepth);
 					}
 				}
 			};
 
-			var processNodeWithOutgoingRelationship = function(node, nodeIdIndex, nodeId, merge, pathExpansionDepth) {
+			var processNodeWithOutgoingRelationship = async function(node, nodeIdIndex, nodeId, merge, pathExpansionDepth) {
 				var returnValue;
 				if(node.outgoingRelationship()) {
 					var matchingRelationshipIds =
 						getMatchingRelationshipIds(node, nodeIdIndex, nodeId, pathExpansionDepth);
 					if(!matchingRelationshipIds && merge) {
-						node.getPattern().create();
+						await node.getPattern().create();
 						returnValue = -1;
 					} else if(matchingRelationshipIds.length > 0) {
-						returnValue = processMatchingRelationships(node, nodeId, merge, pathExpansionDepth, matchingRelationshipIds);
+						returnValue = await processMatchingRelationships(node, nodeId, merge, pathExpansionDepth, matchingRelationshipIds);
 						if(returnValue != undefined) return returnValue;
 						// Breadth-first path expansion
-						returnValue = pathExpansion(node, nodeId, pathExpansionDepth, matchingRelationshipIds);
+						returnValue = await pathExpansion(node, nodeId, pathExpansionDepth, matchingRelationshipIds);
 						if(returnValue != undefined) return returnValue;
 					}
 				}
 				return returnValue;
 			};
 
-			var processNodeWithIncomingRelationship = function(node, nodeId, merge, pathExpansionDepth) {
+			var processNodeWithIncomingRelationship = async function(node, nodeId, merge, pathExpansionDepth) {
 				var returnValue;
 				// Check if there is an incoming relationship
 				if(node.incomingRelationship()) {
@@ -716,10 +718,10 @@ function CypherJS() {
 
 						if(convey) {
 							if(node.getPattern().usedAsCondition()) {
-								returnValue = conveyorBelt(node, merge, pathExpansionDepth);
+								returnValue = await conveyorBelt(node, merge, pathExpansionDepth);
 								if(returnValue != undefined) return returnValue;
 							} else {
-								conveyorBelt(node, merge, pathExpansionDepth);
+								await conveyorBelt(node, merge, pathExpansionDepth);
 							}
 						}
 
@@ -754,7 +756,7 @@ function CypherJS() {
 				);
 			};
 
-			var processMatchingRelationships = function(node, nodeId, merge, pathExpansionDepth, matchingRelationshipIds) {
+			var processMatchingRelationships = async function(node, nodeId, merge, pathExpansionDepth, matchingRelationshipIds) {
 				var returnValue;
 				var relationship;
 				for(var relationshipIdIdx=0; relationshipIdIdx<matchingRelationshipIds.length; relationshipIdIdx++) {
@@ -773,10 +775,10 @@ function CypherJS() {
 						);
 
 						if(node.getPattern().usedAsCondition()) {
-							returnValue = conveyorBelt(node, merge, pathExpansionDepth);
+							returnValue = await conveyorBelt(node, merge, pathExpansionDepth);
 							if(returnValue != undefined) return returnValue;
 						} else {
-							conveyorBelt(node, merge, pathExpansionDepth);
+							await conveyorBelt(node, merge, pathExpansionDepth);
 						}
 
 						node.outgoingRelationship().setExpandedEndNode(null);
@@ -786,7 +788,7 @@ function CypherJS() {
 				}
 			};
 
-			var pathExpansion = function(node, nodeId, pathExpansionDepth, matchingRelationshipIds) {
+			var pathExpansion = async function(node, nodeId, pathExpansionDepth, matchingRelationshipIds) {
 				if(node.outgoingRelationship().expandPath()) {
 					for(var relationshipIdIdx=0; relationshipIdIdx<matchingRelationshipIds.length; relationshipIdIdx++) {
 						relationship = relationships[[matchingRelationshipIds[relationshipIdIdx]]];
@@ -808,7 +810,7 @@ function CypherJS() {
 								relationship.getToNode(nodeId)
 							);
 							
-							self.matchNode(
+							await self.matchNode(
 								node,
 								false,
 								(pathExpansionDepth || 0) + 1
@@ -829,21 +831,20 @@ function CypherJS() {
 				}
 			};
 
-			this.matchNode = function(node, merge, pathExpansionDepth) {
+			this.matchNode = async function(node, merge, pathExpansionDepth) {
 				var returnValue;
 
-				var nodeIdsForConveyorBelt =
-					getMatchingNodeIds(node, merge);
+				var nodeIdsForConveyorBelt = await getMatchingNodeIds(node, merge);
 
 				if(nodeIdsForConveyorBelt && nodeIdsForConveyorBelt.length) {
 					for(var nodeIdIndex=0; nodeIdIndex<nodeIdsForConveyorBelt.length; nodeIdIndex++) {
 						var nodeId = nodeIdsForConveyorBelt[nodeIdIndex];
 						
-						returnValue = processNodeWithoutRelationships(node, nodeId, merge, pathExpansionDepth);
+						returnValue = await processNodeWithoutRelationships(node, nodeId, merge, pathExpansionDepth);
 						if(returnValue != undefined) return returnValue;
-						returnValue = processNodeWithOutgoingRelationship(node, nodeIdIndex, nodeId, merge, pathExpansionDepth);
+						returnValue = await processNodeWithOutgoingRelationship(node, nodeIdIndex, nodeId, merge, pathExpansionDepth);
 						if(returnValue != undefined) return returnValue;
-						returnValue = processNodeWithIncomingRelationship(node, nodeId, merge, pathExpansionDepth);
+						returnValue = await processNodeWithIncomingRelationship(node, nodeId, merge, pathExpansionDepth);
 						if(returnValue != undefined) return returnValue;
 	
 					}
@@ -1122,8 +1123,8 @@ function CypherJS() {
 			this.setNextAction = function(f) {
 				this.nextAction = f;
 			};
-			this.convey = function(merge, pathExpansionDepth) {
-				return db.matchNode(
+			this.convey = async function(merge, pathExpansionDepth) {
+				return await db.matchNode(
 					me,
 					merge,
 					// match: merge == false
@@ -1131,14 +1132,14 @@ function CypherJS() {
 					pathExpansionDepth
 				);
 			};
-			this.create = function() {
-				return db.createNode(me);
+			this.create = async function() {
+				return await db.createNode(me);
 			};
-			this.merge = function() {
-				return db.mergeNode(me);
+			this.merge = async function() {
+				return await db.mergeNode(me);
 			};
-			this.match = function() {
-				return db.matchNodes(me);
+			this.match = async function() {
+				return await db.matchNodes(me);
 			};
 			
 			var matchedNode;
@@ -1746,9 +1747,9 @@ function CypherJS() {
 			};
 			var initialiseConveyorBelt = function() {
 				me.lastObject().setNextAction(
-					function() {
+					async function() {
 						if(!findShortestPath) {
-							nextAction();
+							await nextAction();
 						} else if(findShortestPath) {
 							processShortestPath();
 						}
@@ -1769,17 +1770,17 @@ function CypherJS() {
 			this.value = function() {
 				return nodes[0].convey(false);
 			};
-			this.match = function() {
+			this.match = async function() {
 				initialiseConveyorBelt();
-				nodes[0].convey(false); // match: merge == false
+				await nodes[0].convey(false); // match: merge == false
 			};
-			this.merge = function() {
+			this.merge = async function() {
 				initialiseConveyorBelt();
-				nodes[0].convey(true); // merge: merge == true
+				await nodes[0].convey(true); // merge: merge == true
 			};
-			this.create = function() {
+			this.create = async function() {
 				initialiseConveyorBelt();
-				nodes[0].create();
+				await nodes[0].create();
 			};
 
 			this.mappable = function() {
@@ -3320,7 +3321,7 @@ function CypherJS() {
 					context.setNextMapValue(
 						trieNode.map[key].value
 					);
-					printTrie(trieNode.map[key]);
+					await printTrie(trieNode.map[key]);
 					context.moveToPreviousMapValue();
 				}
 				if(!key) {
@@ -3628,13 +3629,13 @@ function CypherJS() {
 					await internalDoIt();
 				}
 			};
-			this.finish = function() {
+			this.finish = async function() {
 				if(this.conveyorBeltEnd()) {
 					internalDoIt();
 				}
 				if(this.hasGroupBy()) {
 					// Read aggregated results
-					groupBy.print();
+					await groupBy.print();
 				}
 				if(nextOperation) {
 					nextOperation.finish();
@@ -3776,7 +3777,8 @@ function CypherJS() {
 			var data;
 			var previousOperation;
 			var nextOperation = null;
-			var intermediateVariables = new Map();
+			var runCounter = 0;
+			var runId;
 
 			var HTTP_PROXY =
 				statement.engine().getDataDownloadProxy();
@@ -4003,47 +4005,23 @@ function CypherJS() {
 				await this.run();
 			};
 			this.finish = function() {
-				nextOperation.finish();
-			};
-			this.saveVariables = function() {
-				var variables = Object.fromEntries(
-					statement.variables().map((v) => [v.getObjectKey(), v.value()])
-				);				  
-				var key = intermediateVariables.size;
-				intermediateVariables.set(key, variables);
-				return key;
-			};
-			this.setVariables = function(key) {
-				var variables = intermediateVariables.get(key);
-				for (let variableKey in variables) {
-					let variable = statement.getVariable(variableKey);
-					let variableValue = variables[variableKey];
-					if(variable) {
-						variable.setOverriddenValue(variableValue);
-					}
+				if(nextOperation) {
+					nextOperation.finish();
 				}
 			};
-			this.removeVariables = function(key) {
-				var variables = intermediateVariables.get(key);
-				for (let variableKey in variables) {
-					let variable = statement.getVariable(variableKey);
-					if(variable) {
-						variable.setOverriddenValue(null);
-					}
-				}
-				intermediateVariables.delete(key);
+			this.getRunId = function() {
+				return runCounter++;
 			};
-			this.isVariablesEmpty = function() {
-				return intermediateVariables.size == 0;
+			this.isLastRun = function(runId) {
+				return runId == runCounter-1;
 			};
 			this.run = async function() {
 				const me = this;
 				const from = me.from();
-				//const variablesKey = me.saveVariables();
+				const runId = me.getRunId();
 			
 				return new Promise((resolve, reject) => {
 					const handleResponse = async function(responseText) { // Success
-						//me.setVariables(variablesKey);
 						if (me.loadType() == "CSV") {
 							csvData = responseText;
 							await parseCSV(
@@ -4063,10 +4041,9 @@ function CypherJS() {
 							data = responseText;
 							await nextOperation.doIt();
 						}
-						/*me.removeVariables(variablesKey);
-						if (me.isVariablesEmpty()) {
+						if(!previousOperation && nextOperation) {
 							nextOperation.finish();
-						}*/
+						}
 						resolve();  // Resolve the Promise when handleResponse is done
 					};
 			
@@ -7070,7 +7047,7 @@ function CypherJS() {
 
 	var dataDownloadProxy;
 	
-	this.execute = function(statementText, successCallback, errorCallback) {
+	this.execute = async function(statementText, successCallback, errorCallback) {
 		statement.clear();
 		var callee = arguments.callee;
 		
@@ -7087,7 +7064,7 @@ function CypherJS() {
 		try {
 			parser.parse(statementText);
 			statement.setSuccessCallback(successCallback);
-			this.run();
+			await this.run();
 		} catch(e) {
 			errorCallback(e);
 			printStackTrace(callee);
@@ -7293,13 +7270,13 @@ function CypherJS() {
 		return statement.context();
 	};
 	
-	this.run = function() {
+	this.run = async function() {
 		switch(statement.context().type()) {
 			case 'Match':
 			case 'With':
 				throw "A " + statement.context().type() + "-statement cannot conclude the query.";
 		}
-		statement.operations()[0].run();
+		await statement.operations()[0].run();
 	};
 	
 }
@@ -7472,8 +7449,8 @@ function Cypher(options) {
 			);
 		}
 
-		this.execute = function(statementText, _successCallback, _errorCallback) {
-			db.execute(statementText, _successCallback, _errorCallback);
+		this.execute = async function(statementText, _successCallback, _errorCallback) {
+			await db.execute(statementText, _successCallback, _errorCallback);
 		};
 
 	}

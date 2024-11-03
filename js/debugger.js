@@ -3,15 +3,13 @@ var Cypher = require("./Cypher.js");
 var engine = new Cypher();
 
 var statement = `
-    unwind [
-        {type: 'user', message: 'Hello!'},
-        {type: 'coach', message: 'Hi! How can I help you today?'},
-        {type: 'user', message: 'I am feeling very stressed out.'}
-    ] as message
-    with message.type as type, collect(message) as messages
-    load text from "https://raw.githubusercontent.com/niclasko/Cypher.js/refs/heads/master/js/debugger.js" as l1
-    load text from "https://raw.githubusercontent.com/niclasko/Cypher.js/refs/heads/master/js/debugger.js" as l2
-    return type, size(messages), size(l1), size(l2)
+    load csv with headers from "https://raw.githubusercontent.com/melaniewalsh/sample-social-network-datasets/master/sample-datasets/game-of-thrones/got-nodes.csv" as node
+    merge (c:Character{name:node.Id})
+    with count(1) as dummy
+    load csv with headers from "https://raw.githubusercontent.com/melaniewalsh/sample-social-network-datasets/master/sample-datasets/game-of-thrones/got-edges.csv" as edge
+    match (source:Character{name:edge.Source}), (target:Character{name:edge.Target})
+    merge (source)-[r:KNOWS{weight:edge.Weight}]->(target)
+    return r
 `;
 
 engine.execute(
