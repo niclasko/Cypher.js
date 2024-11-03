@@ -9,7 +9,9 @@ var statement = `
     load csv with headers from "https://raw.githubusercontent.com/melaniewalsh/sample-social-network-datasets/master/sample-datasets/game-of-thrones/got-edges.csv" as edge
     match (source:Character{name:edge.Source}), (target:Character{name:edge.Target})
     merge (source)-[r:KNOWS{weight:edge.Weight}]->(target)
-    return r
+    with count(1) as cnt
+    match (a:Character)-[:KNOWS]->(b:Character)
+    return count(1)
 `;
 
 engine.execute(
