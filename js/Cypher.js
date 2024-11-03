@@ -2776,7 +2776,7 @@ function CypherJS() {
 				return previousOperation.variables();
 			};
 
-			this.doIt = function() {
+			this.doIt = async function() {
 				var variable;
 				for(var i=0; i<previousOperation.variables().length; i++) {
 					variable = previousOperation.variables()[i];
@@ -2786,10 +2786,7 @@ function CypherJS() {
 					);
 				}
 				if(nextOperation) {
-					const result = nextOperation.doIt();
-					if (result instanceof Promise) {
-						result.then();
-					}
+					await nextOperation.doIt();
 				}
 			};
 			this.finish = function() {
@@ -2797,7 +2794,7 @@ function CypherJS() {
 					nextOperation.finish();
 				}
 			};
-			this.run = function() {
+			this.run = async function() {
 				throw "Into-operation cannot be first in statement.";
 			};
 			this.type = function() {
@@ -2967,15 +2964,12 @@ function CypherJS() {
 				return previousOperation.variables();
 			};
 
-			this.doIt = function() {
+			this.doIt = async function() {
 				for(var i=0; i<setters.length; i++) {
 					setters[i].set();
 				}
 				if(nextOperation) {
-					const result = nextOperation.doIt();
-					if (result instanceof Promise) {
-						result.then();
-					}
+					await nextOperation.doIt();
 				}
 			};
 			this.finish = function() {
@@ -2983,7 +2977,7 @@ function CypherJS() {
 					nextOperation.finish();
 				}
 			};
-			this.run = function() {
+			this.run = async function() {
 				throw "Set-operation cannot be first in statement.";
 			};
 			this.type = function() {
@@ -3037,28 +3031,25 @@ function CypherJS() {
 			var initialiseConveyorBelt = function() {
 				if(nextOperation) {
 					lastPattern().setNextAction(
-						function() {
+						async function() {
 							if(!whereCondition || whereCondition.evaluate()) {
-								const result = nextOperation.doIt();
-								if (result instanceof Promise) {
-									result.then();
-								}
+								await nextOperation.doIt();
 							}
 						}
 					);
 				}
 			};
-			this.doIt = function() {
+			this.doIt = async function() {
 				if(previousOperation.constructor == Merge) {
 					throw "WITH is required between MERGE and CREATE";
 				}
 				initialiseConveyorBelt();
-				this.doIt = function() {
+				this.doIt = async function() {
 					for (var patternIdx=0; patternIdx < patterns.length; patternIdx++) {
-						patterns[patternIdx].create();
+						await patterns[patternIdx].create();
 					}
 				};
-				this.doIt();
+				await this.doIt();
 			};
 			this.finish = function() {
 				if(nextOperation) {
@@ -3131,28 +3122,25 @@ function CypherJS() {
 			var initialiseConveyorBelt = function() {
 				if(nextOperation) {
 					lastPattern().setNextAction(
-						function() {
+						async function() {
 							if(!whereCondition || whereCondition.evaluate()) {
-								const result = nextOperation.doIt();
-								if (result instanceof Promise) {
-									result.then();
-								}
+								await nextOperation.doIt();
 							}
 						}
 					);
 				}
 			};
-			this.doIt = function() {
+			this.doIt = async function() {
 				if(previousOperation.constructor == Merge) {
 					throw "WITH is required between MERGE and MATCH";
 				}
 				initialiseConveyorBelt();
-				this.doIt = function() {
+				this.doIt = async function() {
 					for (var patternIdx=0; patternIdx < patterns.length; patternIdx++) {
-						patterns[patternIdx].match();
+						await patterns[patternIdx].match();
 					}
 				};
-				this.doIt();
+				await this.doIt();
 			};
 			this.finish = function() {
 				if(nextOperation) {
@@ -3230,23 +3218,20 @@ function CypherJS() {
 			var initialiseConveyorBelt = function() {
 				if(nextOperation) {
 					lastPattern().setNextAction(
-						function() {
+						async function() {
 							if(!whereCondition || whereCondition.evaluate()) {
-								const result = nextOperation.doIt();
-								if (result instanceof Promise) {
-									result.then();
-								}
+								await nextOperation.doIt();
 							}
 						}
 					);
 				}
 			};
-			this.doIt = function() {
+			this.doIt = async function() {
 				initialiseConveyorBelt();
-				this.doIt = function() {
-					lastPattern().merge();
+				this.doIt = async function() {
+					await lastPattern().merge();
 				};
-				this.doIt();
+				await this.doIt();
 			};
 			this.finish = function() {
 				if(nextOperation) {
@@ -3326,10 +3311,10 @@ function CypherJS() {
 			this.addReducer = function() {
 				return reducersCount++;
 			};
-			this.print = function() {
-				printTrie(trieRoot);
+			this.print = async function() {
+				await printTrie(trieRoot);
 			};
-			var printTrie = function(trieNode) {
+			var printTrie = async function(trieNode) {
 				var key;
 				for(key in trieNode.map) {
 					context.setNextMapValue(
@@ -3340,7 +3325,7 @@ function CypherJS() {
 				}
 				if(!key) {
 					currentTrieNode = trieNode;
-					context.addAggregateOutputRecord();
+					await context.addAggregateOutputRecord();
 				}
 			};
 		};
@@ -3490,7 +3475,7 @@ function CypherJS() {
 			this.moveToPreviousMapValue = function() {
 				mapReturnValuesIterator--;
 			};
-			this.addAggregateOutputRecord = function() {
+			this.addAggregateOutputRecord = async function() {
 				if(!whereConditionMet()) {
 					return;
 				}
@@ -3505,7 +3490,7 @@ function CypherJS() {
 				}
 				recordCount++;
 				if(nextOperation) {
-					nextOperation.doIt();
+					await nextOperation.doIt();
 				}
 			};
 			this.setReturnValueNextAction = function(returnValue) {
@@ -3602,7 +3587,7 @@ function CypherJS() {
 			this.type = function() {
 				return this.constructor.name;
 			};
-			var internalDoIt = function() {
+			var internalDoIt = async function() {
 				doItCount++;
 				if(!me.hasGroupBy()) {
 					if(!whereConditionMet()) {
@@ -3616,10 +3601,7 @@ function CypherJS() {
 					}
 					recordCount++;
 					if(nextOperation) {
-						const result = nextOperation.doIt();
-						if (result instanceof Promise) {
-							result.then();
-						}
+						await nextOperation.doIt();
 					}
 				} else if(me.hasGroupBy()) {
 					// Map
@@ -3641,9 +3623,9 @@ function CypherJS() {
 					}
 				}
 			};
-			this.doIt = function() {
+			this.doIt = async function() {
 				if(!this.conveyorBeltEnd()) {
-					internalDoIt();
+					await internalDoIt();
 				}
 			};
 			this.finish = function() {
@@ -3706,7 +3688,7 @@ function CypherJS() {
 			var unwindedVariableKey;
 			var index = 0;
 			
-			this.doIt = function() {
+			this.doIt = async function() {
 				if(nextOperation) {
 					collectionToUnwind = expressionToUnwind.value();
 					if(!collectionToUnwind) {
@@ -3716,10 +3698,7 @@ function CypherJS() {
 						throw "Unwind expects list expression.";
 					}
 					for(index=0; index<collectionToUnwind.length; index++) {
-						const result = nextOperation.doIt();
-						if (result instanceof Promise) {
-							result.then();
-						}
+						await nextOperation.doIt();
 					}
 				}
 			};
@@ -3728,8 +3707,8 @@ function CypherJS() {
 					nextOperation.finish();
 				}
 			};
-			this.run = function() {
-				this.doIt();
+			this.run = async function() {
+				await this.doIt();
 				if(nextOperation) {
 					nextOperation.finish();
 				}
@@ -3899,7 +3878,7 @@ function CypherJS() {
 				return statement.variables();
 			};
 			
-			var parseCSV = function(_fieldSeparator, nextOperation) {
+			var parseCSV = async function(_fieldSeparator, nextOperation) {
 				
 				var fieldNames = [], fieldNumber = 0;
 				var record = {};
@@ -3968,15 +3947,12 @@ function CypherJS() {
 					return !(isFieldSeparator() || newLine() || eof());
 				};
 	
-				var addRecord = function() {
+				var addRecord = async function() {
 					if(lineNumber++ > 0) {
 						data = record;
 						record = {};
 						fieldNumber = 0;
-						const result = nextOperation();
-						if (result instanceof Promise) {
-							result.then();
-						}
+						await nextOperation();
 					}
 				};
 	
@@ -4006,11 +3982,11 @@ function CypherJS() {
 					while(!newLine() && !eof()) {
 						field();
 					}
-					addRecord();
+					await addRecord();
 					next(); // Skip new line or last character
 				}
 			};
-			var processJSON = function(jsonData, nextOperation) {
+			var processJSON = async function(jsonData, nextOperation) {
 				if(jsonData.constructor == Array) {
 					for(var i=0; i<jsonData.length; i++) {
 						data = addAssociativeArrayFunctions(
@@ -4020,11 +3996,11 @@ function CypherJS() {
 					}
 				} else if(jsonData.constructor == Object) {
 					data = addAssociativeArrayFunctions(jsonData);
-					nextOperation();
+					await nextOperation();
 				}
 			};
-			this.doIt = function() {
-				return this.run();
+			this.doIt = async function() {
+				await this.run();
 			};
 			this.finish = function() {
 				;
@@ -4060,80 +4036,81 @@ function CypherJS() {
 			this.isVariablesEmpty = function() {
 				return intermediateVariables.size == 0;
 			};
-			this.run = function() {
-				var me = this;
-				var from = me.from();
-				var variablesKey = me.saveVariables();
-				var handleResponse = function(responseText) { // Success
-					me.setVariables(variablesKey);
-					if(me.loadType() == "CSV") {
-						csvData = responseText;
-						parseCSV(
-							me.fieldTerminator(),
-							function() {
-								nextOperation.doIt();
-							}
-						);
-					} else if(me.loadType() == "JSON") {
-						processJSON(
-							JSON.parse(responseText),
-							function() {
-								nextOperation.doIt();
-							}
-						);
-					} else if(me.loadType() == "TEXT") {
-						data = responseText;
-						nextOperation.doIt();
-					}
-					me.removeVariables(variablesKey);
-					if(me.isVariablesEmpty()) {
-						nextOperation.finish();
-					}
-				};
-				var handleError = function(statusText) { // Error
-					var error = "Error loading data from " + from + ": " + statusText;
+			this.run = async function() {
+				const me = this;
+				const from = me.from();
+				const variablesKey = me.saveVariables();
+			
+				return new Promise((resolve, reject) => {
+					const handleResponse = async function(responseText) { // Success
+						me.setVariables(variablesKey);
+						if (me.loadType() == "CSV") {
+							csvData = responseText;
+							await parseCSV(
+								me.fieldTerminator(),
+								async function() {
+									await nextOperation.doIt();
+								}
+							);
+						} else if (me.loadType() == "JSON") {
+							processJSON(
+								JSON.parse(responseText),
+								async function() {
+									await nextOperation.doIt();
+								}
+							);
+						} else if (me.loadType() == "TEXT") {
+							data = responseText;
+							await nextOperation.doIt();
+						}
+						me.removeVariables(variablesKey);
+						if (me.isVariablesEmpty()) {
+							nextOperation.finish();
+						}
+						resolve();  // Resolve the Promise when handleResponse is done
+					};
+			
+					const handleError = function(statusText) { // Error
+						const error = "Error loading data from " + from + ": " + statusText;
+						try {
+							self.onerror(error);
+						} catch(e) {
+							reject(e);  // Reject the Promise if there's an error
+						}
+					};
+			
 					try {
-						self.onerror(error);
-					} catch(e) {
-						throw error;
-					}
-				};
-				if(from.constructor == String) {
-					if(me.getRequestType() == "GET") {
-						try {
-							http.get(
-								from,
-								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null,
-								handleResponse,
-								handleError
-							);
-						} catch(e) {
-							handleError(e);
-						}
-					} else if(me.getRequestType() == "POST") {
-						try {
-							http.post(
-								me.from(),
-								me.getPayload(),
-								me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null,
-								handleResponse,
-								handleError
-							);
-						} catch(e) {
-							handleError(e);
-						}
-					}
-				} else if(from.constructor != String) {
-					if(me.loadType() == "JSON") {
-						processJSON(
-							from,
-							function() {
-								nextOperation.doIt();
+						if (from.constructor === String) {
+							if (me.getRequestType() === "GET") {
+								http.get(
+									from,
+									me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null,
+									handleResponse,
+									handleError
+								);
+							} else if (me.getRequestType() === "POST") {
+								http.post(
+									me.from(),
+									me.getPayload(),
+									me.getHTTPHeaders() ? me.getHTTPHeaders().value(false) : null,
+									handleResponse,
+									handleError
+								);
 							}
-						);
+						} else if (from.constructor !== String && me.loadType() === "JSON") {
+							processJSON(
+								from,
+								async function() {
+									await nextOperation.doIt();
+								}
+							);
+							resolve();  // Resolve immediately if no async operation is needed
+						}
+					} catch (e) {
+						reject(e);  // Reject if there's an error in the HTTP call setup
 					}
-				}
-			};
+				});
+			};			
 			this.type = function() {
 				return this.constructor.name;
 			};
