@@ -4003,7 +4003,7 @@ function CypherJS() {
 				await this.run();
 			};
 			this.finish = function() {
-				;
+				nextOperation.finish();
 			};
 			this.saveVariables = function() {
 				var variables = Object.fromEntries(
@@ -4039,11 +4039,11 @@ function CypherJS() {
 			this.run = async function() {
 				const me = this;
 				const from = me.from();
-				const variablesKey = me.saveVariables();
+				//const variablesKey = me.saveVariables();
 			
 				return new Promise((resolve, reject) => {
 					const handleResponse = async function(responseText) { // Success
-						me.setVariables(variablesKey);
+						//me.setVariables(variablesKey);
 						if (me.loadType() == "CSV") {
 							csvData = responseText;
 							await parseCSV(
@@ -4063,10 +4063,10 @@ function CypherJS() {
 							data = responseText;
 							await nextOperation.doIt();
 						}
-						me.removeVariables(variablesKey);
+						/*me.removeVariables(variablesKey);
 						if (me.isVariablesEmpty()) {
 							nextOperation.finish();
-						}
+						}*/
 						resolve();  // Resolve the Promise when handleResponse is done
 					};
 			
