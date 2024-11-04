@@ -1739,10 +1739,10 @@ function CypherJS() {
 			var nextAction = function() {
 				;
 			};
-			this.finish = function() {
+			this.finish = async function() {
 				if(findShortestPath) {
 					relationships[0].setShortestPath(shortestPath);
-					nextAction();
+					await nextAction();
 				}
 			};
 			var initialiseConveyorBelt = function() {
@@ -1767,8 +1767,8 @@ function CypherJS() {
 			this.usedAsCondition = function() {
 				return usedAsCondition;
 			};
-			this.value = function() {
-				return nodes[0].convey(false);
+			this.value = async function() {
+				return await nodes[0].convey(false);
 			};
 			this.match = async function() {
 				initialiseConveyorBelt();
@@ -2405,7 +2405,7 @@ function CypherJS() {
 	};
 	
 	Query: {
-		function Expression(_root, _alias, _aggregationFunctions, _context, _variableReferences, _non_deterministic) {
+		function Expression(_root, _alias, _aggregationFunctions, _context, _variableReferences, _non_deterministic, containsPattern) {
 			var root = _root;
 			var alias = (root.element ? (root.element().getKey ? root.element().getKey() : _alias) : _alias);
 			var aggregationFunctions = _aggregationFunctions;
@@ -2413,6 +2413,7 @@ function CypherJS() {
 			var variableReferences = _variableReferences;
 			var childrenHasVariableReferences = false;
 			var localVariables = {};
+			var containsPattern;
 			var me = this;
 			
 			if(aggregationFunctions) {
@@ -2454,6 +2455,13 @@ function CypherJS() {
 			};
 			this.value = function() {
 				return root.value();
+			};
+			this.asyncValue = async function() {
+				if(root.asyncValue) {
+					return await root.asyncValue();
+				} else {
+					throw "Value is not asynchronous.";
+				}
 			};
 			this.getData = function() {
 				return this.value();
@@ -2529,7 +2537,9 @@ function CypherJS() {
 			this.getLocalVariable = function(key) {
 				return localVariables[key];
 			};
-
+			this.containsPattern = function() {
+				return containsPattern;
+			};
 		};
 		function Variable(_object, key) {
 			var object = _object;
@@ -2742,8 +2752,15 @@ function CypherJS() {
 			this.evaluate = function() {
 				return expression.value() == true;
 			};
+			this.asyncEvaluate = async function() {
+				var evaluation = await expression.asyncValue();
+				return evaluation == true;
+			}
 			this.type = function() {
 				return this.constructor.name;
+			};
+			this.containsPattern = function() {
+				return expression.containsPattern();
 			};
 		};
 		function Inserter(_db, _tableName) {
@@ -2790,9 +2807,9 @@ function CypherJS() {
 					await nextOperation.doIt();
 				}
 			};
-			this.finish = function() {
+			this.finish = async function() {
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				}
 			};
 			this.run = async function() {
@@ -2973,9 +2990,9 @@ function CypherJS() {
 					await nextOperation.doIt();
 				}
 			};
-			this.finish = function() {
+			this.finish = async function() {
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				}
 			};
 			this.run = async function() {
@@ -3052,20 +3069,20 @@ function CypherJS() {
 				};
 				await this.doIt();
 			};
-			this.finish = function() {
+			this.finish = async function() {
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				} else if(!nextOperation) {
 					statement.success();
 				}
 			};
-			this.run = function() {
+			this.run = async function() {
 				initialiseConveyorBelt();
 				for (var patternIdx=0; patternIdx < patterns.length; patternIdx++) {
 					patterns[patternIdx].create();
 				}
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				}
 			};
 			this.type = function() {
@@ -3085,9 +3102,22 @@ function CypherJS() {
 			var nextOperation;
 
 			var whereCondition;
+			var me = this;
 			
 			this.where = function(expression) {
 				whereCondition = new Where(expression);
+				if(whereCondition.containsPattern()) {
+					this.evaluateWhere = async function() {
+						return await whereCondition.asyncEvaluate();
+					}
+				} else {
+					this.evaluateWhere = function() {
+						return whereCondition.evaluate();
+					}
+				}
+			};
+			this.evaluateWhere = function() {
+				return true;
 			};
 			this.addPattern = function() {
 				patterns.push(new Pattern());
@@ -3124,7 +3154,7 @@ function CypherJS() {
 				if(nextOperation) {
 					lastPattern().setNextAction(
 						async function() {
-							if(!whereCondition || whereCondition.evaluate()) {
+							if(await me.evaluateWhere()) {
 								await nextOperation.doIt();
 							}
 						}
@@ -3143,26 +3173,26 @@ function CypherJS() {
 				};
 				await this.doIt();
 			};
-			this.finish = function() {
+			this.finish = async function() {
 				if(nextOperation) {
 					for (var patternIdx=0; patternIdx < patterns.length; patternIdx++) {
-						patterns[patternIdx].finish();
+						await patterns[patternIdx].finish();
 					}
-					nextOperation.finish();
+					await nextOperation.finish();
 				} else if(!nextOperation) {
 					statement.success();
 				}
 			};
-			this.run = function() {
+			this.run = async function() {
 				initialiseConveyorBelt();
 				for (var patternIdx=0; patternIdx < patterns.length; patternIdx++) {
-					patterns[patternIdx].match();
+					await patterns[patternIdx].match();
 				}
 				if(nextOperation) {
 					for (var patternIdx=0; patternIdx < patterns.length; patternIdx++) {
-						patterns[patternIdx].finish();
+						await patterns[patternIdx].finish();
 					}
-					nextOperation.finish();
+					await nextOperation.finish();
 				}
 			};
 			this.type = function() {
@@ -3234,18 +3264,18 @@ function CypherJS() {
 				};
 				await this.doIt();
 			};
-			this.finish = function() {
+			this.finish = async function() {
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				} else if(!nextOperation) {
 					statement.success();
 				}
 			};
-			this.run = function() {
+			this.run = async function() {
 				initialiseConveyorBelt();
-				lastPattern().merge();
+				await lastPattern().merge();
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				}
 			};
 			this.type = function() {
@@ -3631,24 +3661,24 @@ function CypherJS() {
 			};
 			this.finish = async function() {
 				if(this.conveyorBeltEnd()) {
-					internalDoIt();
+					await internalDoIt();
 				}
 				if(this.hasGroupBy()) {
 					// Read aggregated results
 					await groupBy.print();
 				}
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				} else if(!nextOperation) {
 					statement.success();
 				}
 			};
-			this.run = function() {
-				internalDoIt();
+			this.run = async function() {
+				await internalDoIt();
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				} else if(!nextOperation) {
-					this.finish();
+					await this.finish();
 				}
 			};
 		};
@@ -3703,15 +3733,15 @@ function CypherJS() {
 					}
 				}
 			};
-			this.finish = function() {
+			this.finish = async function() {
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				}
 			};
 			this.run = async function() {
 				await this.doIt();
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				}
 			};
 			
@@ -3994,7 +4024,7 @@ function CypherJS() {
 						data = addAssociativeArrayFunctions(
 							jsonData[i]
 						);
-						nextOperation();
+						await nextOperation();
 					}
 				} else if(jsonData.constructor == Object) {
 					data = addAssociativeArrayFunctions(jsonData);
@@ -4004,9 +4034,9 @@ function CypherJS() {
 			this.doIt = async function() {
 				await this.run();
 			};
-			this.finish = function() {
+			this.finish = async function() {
 				if(nextOperation) {
-					nextOperation.finish();
+					await nextOperation.finish();
 				}
 			};
 			this.getRunId = function() {
@@ -4031,7 +4061,7 @@ function CypherJS() {
 								}
 							);
 						} else if (me.loadType() == "JSON") {
-							processJSON(
+							await processJSON(
 								JSON.parse(responseText),
 								async function() {
 									await nextOperation.doIt();
@@ -4042,7 +4072,7 @@ function CypherJS() {
 							await nextOperation.doIt();
 						}
 						if(!previousOperation && nextOperation) {
-							nextOperation.finish();
+							await nextOperation.finish();
 						}
 						resolve();  // Resolve the Promise when handleResponse is done
 					};
@@ -6068,6 +6098,12 @@ function CypherJS() {
 					this.elementValue = function() {
 						return element.value.call(elementValueContext);
 					};
+					this.asyncValue = async function() {
+						if(element.asyncValue) {
+							return await element.asyncValue.call(elementValueContext);
+						}
+						return true;
+					};
 					this.type = element.type;
 					this.value = this.elementValue;
 					this.groupByKey = element.groupByKey || this.elementValue;
@@ -6182,6 +6218,8 @@ function CypherJS() {
 				var operators = [];
 
 				var expressionElements = [];
+
+				var containsPattern = false;
 				
 				var recordExpressionElement = function(element) {
 					expressionElements.push(element);
@@ -6208,7 +6246,8 @@ function CypherJS() {
 						output: output,
 						operators: operators,
 						expressionElements: expressionElements,
-						rollbackPosition: rollbackPosition
+						rollbackPosition: rollbackPosition,
+						containsPattern: containsPattern
 					});
 					reset();
 				};
@@ -6218,6 +6257,7 @@ function CypherJS() {
 					operators = layer.operators;
 					expressionElements = layer.expressionElements;
 					rollbackPosition = layer.rollbackPosition;
+					containsPattern = layer.containsPattern;
 				};
 
 				var addOutput = function(o) {
@@ -6286,6 +6326,7 @@ function CypherJS() {
 					}).v;
 				};
 				var addPattern = function(pattern) {
+					containsPattern = true;
 					return addOutput({
 						isAtom: true,
 						v: recordExpressionElement(new ExpressionElement(pattern))
@@ -6297,6 +6338,7 @@ function CypherJS() {
 					}
 				};
 				var addExpression = function(expression) {
+					containsPattern ||= expression.containsPattern();
 					return addOutput({
 						isAtom: true,
 						v: recordExpressionElement(new ExpressionElement(expression))
@@ -6421,7 +6463,8 @@ function CypherJS() {
 						aggregationFunctions,
 						engine.statement().context(),
 						variableReferences,
-						non_deterministic
+						non_deterministic,
+						containsPattern
 					);
 					for(var i=0; i<expressionElements.length; i++) {
 						expressionElements[i].setExpression(expression);

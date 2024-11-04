@@ -1,26 +1,40 @@
+const { default: test } = require("node:test");
 var Cypher = require("./Cypher.js");
 
 var engine = new Cypher();
 
 var statement = `
-    load csv with headers from "https://raw.githubusercontent.com/melaniewalsh/sample-social-network-datasets/master/sample-datasets/game-of-thrones/got-nodes.csv" as node
-    merge (c:Character{name:node.Id})
-    with count(1) as dummy
-    load csv with headers from "https://raw.githubusercontent.com/melaniewalsh/sample-social-network-datasets/master/sample-datasets/game-of-thrones/got-edges.csv" as edge
-    match (source:Character{name:edge.Source}), (target:Character{name:edge.Target})
-    merge (source)-[r:KNOWS{weight:edge.Weight}]->(target)
-    with count(1) as cnt
-    match (a:Character)-[:KNOWS]->(b:Character)
-    return count(1)
+    merge (computer:Item{id:"Computer"})
+    merge (hdd:Item{id:"HDD"})
+    merge (keyboard:Item{id:"Keyboard"})
+    merge (motherboard:Item{id:"Motherboard"})
+    merge (cpu:Item{id:"CPU"})
+    merge (ram:Item{id:"RAM"})
+    merge (bus:Item{id:"Bus"})
+    merge (hdd)-[:PARENT]->(computer)
+    merge (keyboard)-[:PARENT]->(computer)
+    merge (motherboard)-[:PARENT]->(computer)
+    merge (cpu)-[:PARENT]->(motherboard)
+    merge (ram)-[:PARENT]->(motherboard)
+    merge (bus)-[:PARENT]->(motherboard)
+    with 1 as dummy
+    match p=(:Item)-[:PARENT*]->(pid:Item)
+    where not((pid)-[:PARENT]->(:Item))
+    unwind nodes(p) as item
+    return nodes(p)[0].id, collect(item.id) as item_path
 `;
 
-engine.execute(
-    statement,
-    function(results) {
-        console.log(JSON.stringify(results.graph));
-        console.log(JSON.stringify(results));
-    },
-    function(error) {
-        console.log(error);
-    }
-);
+async function run() {
+    await engine.execute(
+        statement,
+        function(results) {
+            console.log(JSON.stringify(results.graph));
+            console.log(JSON.stringify(results));
+        },
+        function(error) {
+            console.log(error);
+        }
+    );
+}
+
+run();
