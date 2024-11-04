@@ -19,7 +19,7 @@ var statement = `
     merge (bus)-[:PARENT]->(motherboard)
     with 1 as dummy
     match p=(:Item)-[:PARENT*]->(pid:Item)
-    where not((pid)-[:PARENT]->(:Item))
+    //where not((pid)-[:PARENT]->(:Item))
     unwind nodes(p) as item
     return nodes(p)[0].id, collect(item.id) as item_path
 `;

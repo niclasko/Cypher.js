@@ -1767,8 +1767,8 @@ function CypherJS() {
 			this.usedAsCondition = function() {
 				return usedAsCondition;
 			};
-			this.value = async function() {
-				return await nodes[0].convey(false);
+			this.value = function() {
+				return nodes[0].convey(false);
 			};
 			this.match = async function() {
 				initialiseConveyorBelt();
@@ -2405,7 +2405,7 @@ function CypherJS() {
 	};
 	
 	Query: {
-		function Expression(_root, _alias, _aggregationFunctions, _context, _variableReferences, _non_deterministic, containsPattern) {
+		function Expression(_root, _alias, _aggregationFunctions, _context, _variableReferences, _non_deterministic) {
 			var root = _root;
 			var alias = (root.element ? (root.element().getKey ? root.element().getKey() : _alias) : _alias);
 			var aggregationFunctions = _aggregationFunctions;
@@ -2413,7 +2413,6 @@ function CypherJS() {
 			var variableReferences = _variableReferences;
 			var childrenHasVariableReferences = false;
 			var localVariables = {};
-			var containsPattern;
 			var me = this;
 			
 			if(aggregationFunctions) {
@@ -2455,13 +2454,6 @@ function CypherJS() {
 			};
 			this.value = function() {
 				return root.value();
-			};
-			this.asyncValue = async function() {
-				if(root.asyncValue) {
-					return await root.asyncValue();
-				} else {
-					throw "Value is not asynchronous.";
-				}
 			};
 			this.getData = function() {
 				return this.value();
@@ -2536,9 +2528,6 @@ function CypherJS() {
 
 			this.getLocalVariable = function(key) {
 				return localVariables[key];
-			};
-			this.containsPattern = function() {
-				return containsPattern;
 			};
 		};
 		function Variable(_object, key) {
@@ -2752,15 +2741,8 @@ function CypherJS() {
 			this.evaluate = function() {
 				return expression.value() == true;
 			};
-			this.asyncEvaluate = async function() {
-				var evaluation = await expression.asyncValue();
-				return evaluation == true;
-			}
 			this.type = function() {
 				return this.constructor.name;
-			};
-			this.containsPattern = function() {
-				return expression.containsPattern();
 			};
 		};
 		function Inserter(_db, _tableName) {
@@ -3106,18 +3088,6 @@ function CypherJS() {
 			
 			this.where = function(expression) {
 				whereCondition = new Where(expression);
-				if(whereCondition.containsPattern()) {
-					this.evaluateWhere = async function() {
-						return await whereCondition.asyncEvaluate();
-					}
-				} else {
-					this.evaluateWhere = function() {
-						return whereCondition.evaluate();
-					}
-				}
-			};
-			this.evaluateWhere = function() {
-				return true;
 			};
 			this.addPattern = function() {
 				patterns.push(new Pattern());
@@ -3154,7 +3124,7 @@ function CypherJS() {
 				if(nextOperation) {
 					lastPattern().setNextAction(
 						async function() {
-							if(await me.evaluateWhere()) {
+							if(!whereCondition || whereCondition.evaluate()) {
 								await nextOperation.doIt();
 							}
 						}
@@ -6098,12 +6068,6 @@ function CypherJS() {
 					this.elementValue = function() {
 						return element.value.call(elementValueContext);
 					};
-					this.asyncValue = async function() {
-						if(element.asyncValue) {
-							return await element.asyncValue.call(elementValueContext);
-						}
-						return true;
-					};
 					this.type = element.type;
 					this.value = this.elementValue;
 					this.groupByKey = element.groupByKey || this.elementValue;
@@ -6218,8 +6182,6 @@ function CypherJS() {
 				var operators = [];
 
 				var expressionElements = [];
-
-				var containsPattern = false;
 				
 				var recordExpressionElement = function(element) {
 					expressionElements.push(element);
@@ -6246,8 +6208,7 @@ function CypherJS() {
 						output: output,
 						operators: operators,
 						expressionElements: expressionElements,
-						rollbackPosition: rollbackPosition,
-						containsPattern: containsPattern
+						rollbackPosition: rollbackPosition
 					});
 					reset();
 				};
@@ -6257,7 +6218,6 @@ function CypherJS() {
 					operators = layer.operators;
 					expressionElements = layer.expressionElements;
 					rollbackPosition = layer.rollbackPosition;
-					containsPattern = layer.containsPattern;
 				};
 
 				var addOutput = function(o) {
@@ -6326,7 +6286,6 @@ function CypherJS() {
 					}).v;
 				};
 				var addPattern = function(pattern) {
-					containsPattern = true;
 					return addOutput({
 						isAtom: true,
 						v: recordExpressionElement(new ExpressionElement(pattern))
@@ -6338,7 +6297,6 @@ function CypherJS() {
 					}
 				};
 				var addExpression = function(expression) {
-					containsPattern ||= expression.containsPattern();
 					return addOutput({
 						isAtom: true,
 						v: recordExpressionElement(new ExpressionElement(expression))
@@ -6463,8 +6421,7 @@ function CypherJS() {
 						aggregationFunctions,
 						engine.statement().context(),
 						variableReferences,
-						non_deterministic,
-						containsPattern
+						non_deterministic
 					);
 					for(var i=0; i<expressionElements.length; i++) {
 						expressionElements[i].setExpression(expression);
