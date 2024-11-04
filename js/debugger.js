@@ -23,7 +23,7 @@ var statement = `
         max_tokens: 50,
         model: "gpt-4-0125"
     } as dummy2
-    with f\`{stringify(messages, 2)}\` as _text
+    with f\`{stringify(messages, 2)}\` as _text where 1=1
     return type, size(messages), _text
 `;
 

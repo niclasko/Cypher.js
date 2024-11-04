@@ -1079,7 +1079,7 @@ function CypherJS() {
 			this.type = function() {
 				return this.constructor.name;
 			};
-			
+
 			this.isRelationship = function() {
 				return false;
 			};
@@ -1356,8 +1356,7 @@ function CypherJS() {
 			};
 			this.type = function() {
 				return this.constructor.name;
-			};
-			
+			};			
 			this.isRelationship = function() {
 				return true;
 			};
@@ -2610,6 +2609,7 @@ function CypherJS() {
 					throw "Variable `" + key + "` already declared.";
 				}
 				variables[key] = lastVariable;
+				operations[operations.length-1].addOperationVariable(lastVariable);
 			};
 			this.debugVariables = function() {
 				for(var key in variables) {
@@ -3083,6 +3083,14 @@ function CypherJS() {
 			this.variables = function() {
 				return statement.variables();
 			};
+
+			var operationVariables = [];
+			this.addOperationVariable = function(variable) {
+				operationVariables.push(variable);
+			};
+			this.getOperationVariables = function() {
+				return operationVariables;
+			};
 			
 		};
 		function Match(_statement) {
@@ -3184,6 +3192,13 @@ function CypherJS() {
 				return statement.variables();
 			};
 			
+			var operationVariables = [];
+			this.addOperationVariable = function(variable) {
+				operationVariables.push(variable);
+			};
+			this.getOperationVariables = function() {
+				return operationVariables;
+			};
 		};
 		function Merge(_statement) {
 			var statement = _statement;
@@ -3268,6 +3283,14 @@ function CypherJS() {
 			
 			this.variables = function() {
 				return statement.variables();
+			};
+
+			var operationVariables = [];
+			this.addOperationVariable = function(variable) {
+				operationVariables.push(variable);
+			};
+			this.getOperationVariables = function() {
+				return operationVariables;
 			};
 		};
 		function GroupBy(context) {
@@ -3602,6 +3625,15 @@ function CypherJS() {
 			this.type = function() {
 				return this.constructor.name;
 			};
+
+			var operationVariables = [];
+			this.addOperationVariable = function(variable) {
+				operationVariables.push(variable);
+			};
+			this.getOperationVariables = function() {
+				return operationVariables;
+			};
+
 			var internalDoIt = function() {
 				doItCount++;
 				if(!me.hasGroupBy()) {
@@ -3783,6 +3815,14 @@ function CypherJS() {
 			this.index = function() {
 				return index;
 			};
+
+			var operationVariables = [];
+			this.addOperationVariable = function(variable) {
+				operationVariables.push(variable);
+			};
+			this.getOperationVariables = function() {
+				return operationVariables;
+			};
 		};
 		function Load(_statement) {
 			var statement = _statement;
@@ -3797,6 +3837,7 @@ function CypherJS() {
 			var data;
 			var previousOperation;
 			var nextOperation = null;
+			var variableKeysBeforeThisOperation = [];
 			var intermediateVariables = new Map();
 
 			var HTTP_PROXY =
@@ -4029,9 +4070,20 @@ function CypherJS() {
 			this.finish = function() {
 				;
 			};
+			this.getPreviousOperationsVariables = function* () {
+				var operation = previousOperation;
+				while(operation) {
+					var variables = operation.getOperationVariables();
+					for (let variable of variables) {
+						yield variable;
+					}
+					operation = operation.previousOperation();
+				}
+			};
 			this.saveVariables = function() {
+				const previousVariables = [...this.getPreviousOperationsVariables()];
 				var variables = Object.fromEntries(
-					statement.variables().map((v) => [v.getObjectKey(), v.value()])
+					previousVariables.map((v) => [v.getObjectKey(), v.value()])
 				);				  
 				var key = intermediateVariables.size;
 				intermediateVariables.set(key, variables);
@@ -4136,6 +4188,13 @@ function CypherJS() {
 			};
 			this.type = function() {
 				return this.constructor.name;
+			};
+			var operationVariables = [];
+			this.addOperationVariable = function(variable) {
+				operationVariables.push(variable);
+			};
+			this.getOperationVariables = function() {
+				return operationVariables;
 			};
 		};
 	};
