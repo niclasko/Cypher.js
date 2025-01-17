@@ -1,0 +1,324 @@
+<!--
+Cypher.js graph query engine for Javascript
+Copyright (c) 2024 "Niclas Kjall-Ohlsson"
+
+This file is part of Cypher.js.
+
+Cypher.js is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Cypher.js is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Cypher.js.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title>Cypher.js</title>
+		<link rel="stylesheet" type="text/css" href="css/web.css">
+		<link rel="stylesheet" type="text/css" href="css/graph.css">
+		<script type="text/javascript" src="js/Cypher.min.js"></script>
+		<script type="text/javascript" src="js/GraphViewer.js"></script>
+		<script type="text/javascript" src="other_js/d3.min.js"></script>
+		<script type="text/javascript" src="other_js/jquery.min.js"></script>
+		<script type="text/javascript">
+			
+			var outputCounter = 0;
+			
+			function init() {
+				cypher = new Cypher({runInWebWorker: true});
+				queryInput = document.getElementById('cypherQuery');
+				output = document.getElementById('output');
+				
+				if(window.location.href.indexOf('?') > -1) {
+				var urlCypherQueryParameter =
+				    decodeURIComponent(
+					window.location.href.split('?')[1]
+				    );
+				
+				if(urlCypherQueryParameter != undefined && urlCypherQueryParameter.length > 0) {
+					setInput(urlCypherQueryParameter);
+					query(urlCypherQueryParameter);	
+				}
+				}
+			}
+			
+			function setInput(q) {
+				queryInput.value = q;
+			}
+			
+			function input(target, e) {
+				if(e.keyCode == 13 && !e.shiftKey) {
+					e.preventDefault();
+					if(target.value.length == 0) return;
+					query(target.value);
+					//target.value = "";
+				}
+			}
+
+			function now() {
+				return (new Date()).getTime();
+			}
+			
+			function getDuration(startTime, endTime, withMilliseconds) {
+	
+				var ds = '';
+				
+				if(endTime) {
+					
+					var s = new Date(parseInt(startTime));
+					var e = new Date(parseInt(endTime));
+				
+					var cj, diff, days, hours, minutes, seconds, milliseconds, remainder;
+					
+					diff = e - s;
+				
+					days = Math.floor(diff/(24*60*60*1000));
+					remainder = diff%(24*60*60*1000);
+				
+					hours = Math.floor(remainder/(60*60*1000));
+					remainder = remainder%(60*60*1000);
+				
+					minutes = Math.floor(remainder/(60*1000));
+					remainder = remainder%(60*1000);
+				
+					seconds = Math.floor(remainder/1000);
+					
+					milliseconds = remainder%1000;
+				
+					ds = (days > 0 ?  days + 'd': '');
+					ds += (ds != '' ? " " : '') + (hours > 0 ? hours + 'h': '');
+					ds += (ds != '' ? " " : '') + (minutes > 0 ? minutes + 'm': '');
+					ds += (ds != '' ? " " : '') + (seconds > 0 ? seconds + 's': '');
+					
+					if(withMilliseconds) {
+						ds += (ds != '' ? " " : '') + (milliseconds > 0 ? milliseconds + 'ms': '');
+					}
+					
+				}
+				
+				return ds;
+				
+			}
+
+			function format(o) {
+				if(o == undefined || o == null) return null;
+				var r = '', e;
+				if(o.constructor == Array) {
+					r += '[';
+					for(var i=0; i<o.length; i++) {
+						/*if(o[i] && o[i].properties) {
+							e = JSON.stringify(o[i].properties);
+						} else {
+							e = JSON.stringify(o[i]);
+						}*/
+						e = JSON.stringify(o[i]);
+						r += (i>0?',':'') + e;
+					}
+					r += ']';
+					return r;
+				} else if(o.constructor == String) {
+					return o;
+				}
+				return JSON.stringify(o);
+			}
+
+			function addOutputPlaceHolder(query) {
+				var out = document.getElementById('output');
+				var div = document.createElement('div');
+				div.setAttribute('class', 'output');
+				
+				var formattingTable = document.createElement('table');
+				formattingTable.setAttribute("class", "results");
+				formattingTable.style.width = "100%";
+				var tr = formattingTable.appendChild(
+					document.createElement('tr')
+				);
+				var td = tr.appendChild(document.createElement('td'));
+				td.setAttribute('colspan', '2');
+				td.innerHTML = '<div class="query">$ <a class="query" href="javascript:void(null)" onclick="setInput(this.innerText)">' + query + '</a></div>';
+				
+				tr = formattingTable.appendChild(
+					document.createElement('tr')
+				);
+				td = tr.appendChild(
+					document.createElement('td')
+				);
+				td.setAttribute('colspan', '2');
+				td.setAttribute('align', 'right');
+				td.innerHTML = 'Running query...';
+
+				div.appendChild(formattingTable);
+				out.insertBefore(div, out.firstChild);
+
+				return formattingTable;
+			}
+			
+			function addOutput(formattingTable, json, start, end) {
+				
+				var hasGraphResults = (
+					json.results ?
+					json.results.graph.nodes.length > 0 :
+					false
+				);
+
+				formattingTable.removeChild(
+					formattingTable.childNodes[
+						formattingTable.childNodes.length-1
+					]
+				);
+				
+				var tr = formattingTable.appendChild(
+					document.createElement('tr')
+				);
+				td = tr.appendChild(document.createElement('td'));
+				td.style.width = "30px";
+				
+				if(hasGraphResults) {
+					td.innerHTML = "<a href=\"javascript:void(null)\" onclick=\"$('#resultstable" + outputCounter + "').hide(); $('#resultsgraph" + outputCounter + "').show(); $(this).addClass('selected'); $(this).next().next().removeClass('selected');\" class=\"selected\">Graph</a>";
+					td.innerHTML += "<br><a href=\"javascript:void(null)\" onclick=\"$('#resultstable" + outputCounter + "').show(); $('#resultsgraph" + outputCounter + "').hide(); $(this).toggleClass('selected'); $(this).prev().prev().toggleClass('selected');\">Table</a>";
+				} else {
+					td.innerHTML = "Table";
+					if(json.error) {
+						td.innerHTML = "Error";
+					}
+				}
+				
+				var resultsCell = tr.appendChild(document.createElement('td'));
+				
+				var tableDiv = resultsCell.appendChild(document.createElement('div'));
+				tableDiv.setAttribute("id", "resultstable" + outputCounter);
+				tableDiv.setAttribute("class", "results");
+				
+				if(hasGraphResults) {
+					tableDiv.style.display = "none";
+				}
+				
+				var result, objectHtml;
+				var html = '';
+				var columnCount = 0;
+				
+				if(json.error) {
+					html += '<div>' + json.error + '</div>';
+				} else if(json.results) {
+					html += '<table class="results">';
+					if(json.results.output.length > 0) {
+						html += '<tr>';
+						for(var key in json.results.output[0]) {
+							html += '<th>' + key + '</th>';
+							columnCount++;
+						}
+						html += '</tr>';
+					}
+					for(var i in json.results.output) {
+						html += '<tr>';
+						for(var key in json.results.output[i]) {
+							result = json.results.output[i][key];
+							html += '<td>';
+							objectHtml = '';
+							if(result) {
+								/*for(var resultKey in result.properties) {
+									objectHtml += '<tr><th>' + resultKey + '</th>';
+									objectHtml += '<td>' + result.properties[resultKey] + '</td></tr>';
+								}*/
+								if(result.constructor == Object) {
+									for(var resultKey in result) {
+										objectHtml += '<tr><th>' + resultKey + '</th>';
+										objectHtml += '<td>' + format(result[resultKey]) + '</td></tr>';
+									}
+								} else {
+									objectHtml += '<td>' + format(result) + '</td></tr>';
+								}
+							}
+							if(objectHtml.length > 0) {
+								html += '<table class="object">' + objectHtml + '</table>';
+								html += '</td>';
+							} else if(objectHtml.length == 0) {
+								html += format(result);
+								html += '</td>';
+							}
+						}
+						html += '</tr>';
+					}
+					if(json.results.output.length == 0) {
+						html += '<tr><td>(no records)</td></tr>';
+					}
+					html += '</table>';
+				}
+				
+				tableDiv.innerHTML = html;
+
+				// Timing
+				var tr = formattingTable.appendChild(
+					document.createElement('tr')
+				);
+				var td = tr.appendChild(
+					document.createElement('td')
+				);
+				td.setAttribute('colspan', '2');
+				td.setAttribute('align', 'right');
+				td.innerHTML = 'Query finished in <b>' + getDuration(start, end, true) + '<b>';
+
+				if(hasGraphResults) {
+					var graphDiv = resultsCell.appendChild(document.createElement('div'));
+					graphDiv.setAttribute("id", "resultsgraph" + outputCounter);
+					graphDiv.setAttribute("class", "results");
+					new GraphViewer({
+						graphData: json.results.graph,
+						container: graphDiv
+					});
+				}
+				
+				outputCounter++;
+				
+			}
+
+			function query(cypherQuery) {
+				var formattingTable = addOutputPlaceHolder(cypherQuery);
+				try {
+					var start = now();
+					var r =
+						cypher.execute(
+							cypherQuery,
+							function(results) {
+								addOutput(
+									formattingTable,
+									{query: cypherQuery, results: results},
+									start,
+									now()
+								);
+							},
+							function(statusText) {
+								addOutput(
+									formattingTable,
+									{query: cypherQuery, error: statusText},
+									start,
+									now()
+								);
+							}
+						);
+				} catch(e) {
+					addOutput({query: cypherQuery, error: e});
+				}
+			}
+		</script>
+	</head>
+	<body onload="init();">
+		<textarea
+			id="cypherQuery"
+			style="width: 100%; height: 70px;"
+			placeholder="Type Cypher and press enter..."
+			onkeydown="input(this, event);"
+			resizeable="false"></textarea>
+		<div id="output"></div>
+		<div style="position: fixed; bottom: 0px; background-color: white; width: 100%;">
+			<a href="." style="color: black;">Reset</a>
+		</div>
+	</body>
+</html>

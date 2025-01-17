@@ -1,0 +1,5 @@
+cypher/
+data/
+build.ps1
+run.ps1
+*.env
