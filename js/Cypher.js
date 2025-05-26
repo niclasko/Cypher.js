@@ -166,6 +166,16 @@ function CypherJS() {
 				initializeNodeIdLookup(key, value);
 				nodeIdLookup[key][value].push(nodeId);
 			};
+			var removeLookupNodeId = function(_key, _value, nodeId) {
+				var key = recode(_key),
+					value = recode(_value);
+				if(nodeIdLookup[key] && nodeIdLookup[key][value]) {
+					var index = nodeIdLookup[key][value].indexOf(nodeId);
+					if(index !== -1) {
+						nodeIdLookup[key][value].splice(index, 1);
+					}
+				}
+			};
 			var addLookupRelationshipId = function(_key, _value, relationshipId) {
 				var key = recode(_key),
 					value = recode(_value);
@@ -519,8 +529,23 @@ function CypherJS() {
 								key,
 								node.getLocalProperty(key)
 							);
-						if(nodeIds) {
+						if(nodeIds && nodeIds.length > 0) {
 							matcher.setMatchingSet(nodeIds);
+						} else {
+							// If no nodes found in index, search all nodes directly
+							var matchingNodeIds = [];
+							for (var nodeId in nodes) {
+								var nodeObj = nodes[nodeId];
+								if (nodeObj && nodeObj.getLocalProperty(key) === node.getLocalProperty(key)) {
+									matchingNodeIds.push(parseInt(nodeId));
+									
+									// Also update the index for future queries
+									addLookupNodeId(key, node.getLocalProperty(key), parseInt(nodeId));
+								}
+							}
+							if (matchingNodeIds.length > 0) {
+								matcher.setMatchingSet(matchingNodeIds);
+							}
 						}
 					 
 					// There are matching node ids that match given patterns so far
@@ -862,6 +887,18 @@ function CypherJS() {
 				return relationships[id];
 			};
 			
+			this.updateNodePropertyIndex = function(propertyKey, oldValue, newValue, nodeId) {
+				// Remove the node ID from the old value in the lookup
+				if (oldValue !== null && oldValue !== undefined) {
+					removeLookupNodeId(propertyKey, oldValue, nodeId);
+				}
+				
+				// Add the node ID to the lookup with the new value
+				if (newValue !== null && newValue !== undefined) {
+					addLookupNodeId(propertyKey, newValue, nodeId);
+				}
+			};
+			
 			this.addNode = function(node) {
 				var n = new Node(this);
 				n.setProperties(node.properties);
@@ -971,13 +1008,25 @@ function CypherJS() {
 			};
 			this.getId = this.id;
 			this.setProperty = function(key, expression) {
+				// Store the old value before updating
+				var oldValue = properties[key];
+				
 				properties[key] = null;
 				propertyExpressions[key] = expression.value;
+				
+				// Return the old value for index updating
+				return oldValue;
 			};
 			this.setProperties = function(_properties) {
+				// Store old values for index updating
+				var oldValues = {};
+				
 				for(var key in _properties) {
+					oldValues[key] = properties[key];
 					properties[key] = _properties[key];
 				}
+				
+				return oldValues;
 			};
 			this.bindProperty = function(key) {
 				properties[key] = propertyExpressions[key]();
@@ -2835,10 +2884,13 @@ function CypherJS() {
 						throw "Cannot assign to object of type \"" + o.constructor.name + "\".";
 					}
 					try {
-						assignee.setProperty(
+						// setProperty now returns the old value
+						var oldValue = assignee.setProperty(
 							propertyKey,
 							expression
 						);
+						
+						// Bind the property to evaluate the expression
 						assignee.bindProperty(propertyKey);
 					} catch(e) {
 						;
@@ -2864,6 +2916,8 @@ function CypherJS() {
 					} else {
 						throw "Cannot assign to object of type \"" + o.constructor.name + "\".";
 					}
+					
+					// setProperties now returns the old values
 					assignee.setProperties(
 						mapExpression.value()
 					);
